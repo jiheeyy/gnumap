@@ -53,9 +53,9 @@ parser.add_argument('--split', type=str, default='PublicSplit')
 parser.add_argument('--epoch', type=int, default=500)
 parser.add_argument('--noise', type=float, default=0)
 parser.add_argument('--n_layers', type=int, default=2)
-parser.add_argument('--n_neighbours', type=int, default=10)
+parser.add_argument('--n_neighbours', type=int, default=50)
 parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--hid_dim', type=int, default=256)
+parser.add_argument('--hid_dim', type=int, default=128)
 
 parser.add_argument('--a', type=float, default=1.)  # data construction
 parser.add_argument('--b', type=float, default=1.)  # data construction
@@ -65,7 +65,7 @@ parser.add_argument('--bw', type=float, default=1.)  # graph construction
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=bool, default=True)
 parser.add_argument('--jcsv', type=float, default=False)  # make csv?
-parser.add_argument('--jm', nargs='+', default=['SPAGCN'],
+parser.add_argument('--jm', nargs='+', default=['SPAGCN', 'DGI','GRACE', 'CCA-SSG'],
                     help='List of models to run')
 args = parser.parse_args()
 
@@ -77,7 +77,7 @@ name_file = args.name_dataset + "_" + args.filename
 results = {}
 logging.info('STARTING EXPERIMENT')
 
-X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=1000,features='none',featdim = 50,
+X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=1000,features='none',featdim = 20,
                                                           n_neighbours=args.n_neighbours,standardize=True,
                                                           centers=4, cluster_std=[0.1, 0.1, 1.0, 1.0],
                                                           ratio_circles=0.2, noise=args.noise,

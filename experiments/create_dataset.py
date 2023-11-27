@@ -56,7 +56,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
 
     elif name == 'Swissroll':
         X_ambient, X_manifold, cluster_labels = create_swissroll(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
-        G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
+        G = convert_to_graph(X_manifold, n_neighbours=n_neighbours, features=features, standardize=standardize, 
                              radius_knn = radius_knn, bw = bw,featdim = 50,)
         G.y = torch.from_numpy(cluster_labels)
 

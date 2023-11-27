@@ -130,24 +130,24 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         embeds = None
         results = None
     else:
-        global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
-                                                 dataset=dataset)
+        # global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+                                                #  dataset=dataset)
         print("done with the embedding evaluation")
         results=[]
-        results = {**global_metrics, **local_metrics}
-        results['model_name'] = model_name
-        results['out_dim'] = out_dim
-        results['hid_dim'] = hid_dim
-        results['n_neighbors'] = n_neighbors
-        results['min_dist'] = min_dist
-        results['lr'] = lr
-        results['edr'] = edr
-        results['fmr'] = fmr
-        results['tau'] = tau
-        results['lambd'] = lambd
-        results['pred_hid'] = pred_hid
-        results['alpha_gnn'] = alpha
-        results['beta_gnn'] = beta
-        results['gnn_type'] = gnn_type
+        # results = {**global_metrics, **local_metrics}
+        # results['model_name'] = model_name
+        # results['out_dim'] = out_dim
+        # results['hid_dim'] = hid_dim
+        # results['n_neighbors'] = n_neighbors
+        # results['min_dist'] = min_dist
+        # results['lr'] = lr
+        # results['edr'] = edr
+        # results['fmr'] = fmr
+        # results['tau'] = tau
+        # results['lambd'] = lambd
+        # results['pred_hid'] = pred_hid
+        # results['alpha_gnn'] = alpha
+        # results['beta_gnn'] = beta
+        # results['gnn_type'] = gnn_type
 
     return (model, results, embeds, loss_values)
