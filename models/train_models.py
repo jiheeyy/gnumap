@@ -628,13 +628,13 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_spagcn(G, cluster_labels, in_dim, hid_dim, out_dim, epochs, n_layers):
+def train_spagcn(G, in_dim, hid_dim, out_dim, epochs, n_layers):
     sparse = G.sparse
     edge_index = G.edge_index
     feats = G.x
     edge_weight = G.edge_weight
-    model = SPAGCN(in_dim=in_dim, nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers)
-    loss_values = model.fit(cluster_labels, feats, sparse, edge_index, edge_weight)
+    model = SPAGCN(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers)
+    loss_values = model.fit(feats, sparse, edge_index, edge_weight)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values

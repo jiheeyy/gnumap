@@ -50,22 +50,24 @@ parser.add_argument('--name_dataset', type=str, default='Swissroll')
 parser.add_argument('--filename', type=str, default='test')
 parser.add_argument('--split', type=str, default='PublicSplit')
 
-parser.add_argument('--epoch', type=int, default=500)
+parser.add_argument('--epoch', type=int, default=400)
 parser.add_argument('--noise', type=float, default=0)
 parser.add_argument('--n_layers', type=int, default=2)
-parser.add_argument('--n_neighbours', type=int, default=50)
+parser.add_argument('--n_neighbours', type=int, default=300)
 parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--hid_dim', type=int, default=128)
+parser.add_argument('--hid_dim', type=int, default=256)
 
 parser.add_argument('--a', type=float, default=1.)  # data construction
 parser.add_argument('--b', type=float, default=1.)  # data construction
 parser.add_argument('--radius_knn', type=float, default=0)  # graph construction
 parser.add_argument('--bw', type=float, default=1.)  # graph construction
+parser.add_argument('--features', type=str, default='lap')  # graph construction
 
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=bool, default=True)
-parser.add_argument('--jcsv', type=float, default=False)  # make csv?
-parser.add_argument('--jm', nargs='+', default=['SPAGCN', 'DGI','GRACE', 'CCA-SSG'],
+parser.add_argument('--jcsv', type=float, default=True)  # make csv?
+parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','SPAGCN', 'GNUMAP',
+                            'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
                     help='List of models to run')
 args = parser.parse_args()
 
@@ -74,10 +76,13 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 save_img = args.save_img
 name_file = args.name_dataset + "_" + args.filename
+new_dir_path = os.path.join(os.getcwd(), 'results/',args.filename)
+if not os.path.exists(new_dir_path):
+    os.makedirs(new_dir_path)
 results = {}
 logging.info('STARTING EXPERIMENT')
 
-X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=1000,features='none',featdim = 20,
+X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=1000,features=args.features,featdim = 20,
                                                           n_neighbours=args.n_neighbours,standardize=True,
                                                           centers=4, cluster_std=[0.1, 0.1, 1.0, 1.0],
                                                           ratio_circles=0.2, noise=args.noise,
@@ -96,12 +101,12 @@ def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
         pass
 
 visualize_dataset(X_manifold, cluster_labels, title=args.name_dataset, save_img=save_img,
-                  save_path=os.getcwd() + '/results/' + "gt_manifold_" + name_file + ".png")
-visualize_dataset(X_ambient, cluster_labels, title=args.name_dataset, save_img=save_img,
-                  save_path=os.getcwd() + '/results/' + "gt_ambient_" + name_file + ".png")
+                  save_path=new_dir_path + "manifold_" + args.name_dataset + ".png")
+# visualize_dataset(X_ambient, cluster_labels, title=args.name_dataset, save_img=save_img,
+#                   save_path=os.getcwd() + '/results/' + "ambient_" + name_file + ".png")
 
 
-def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name):
+def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
     if X is not None:
@@ -128,25 +133,25 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     else:
         pass
     
-    save_path = os.path.join(os.getcwd(), 'results', model_name+file_name+'.png')
-    plt.savefig(save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
+    final_save_path = os.path.join(save_path, model_name+file_name+'.png')
+    plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
 alpha_array = [0.5] #np.arange(0,1,0.5)
-beta_array = [0.5] #np.arange(0,1,0.5)
-lambda_array = [1e-3] #[1e-4, 1e-3, 1e-2, 1e-1, 1.]
+beta_array = [1] #np.arange(0,1,0.5)
+lambda_array = [1e-5] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
 tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
-fmr_array = [0.1] #[0.1,0.6]
-edr_array = [0] #[0,0.1]
-
+fmr_array = [0.2] #[0.1,0.6]
+edr_array = [0.5] #[0,0.1]
+# got pretty spagcn with fmr edr 0.1 0
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
     'GNUMAP':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'SPAGCN':{},
+    'SPAGCN':{'fmr':fmr_array, 'edr':edr_array},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{}
 }
 args_params = {
@@ -179,7 +184,8 @@ for model_name in args.jm:
                     **args_params,
                     **params)
         if save_img:
-            visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)) 
+            visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            new_dir_path) 
         else:
             pass
         
@@ -187,7 +193,7 @@ for model_name in args.jm:
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}
 
 if args.jcsv:
-    file_path = os.getcwd() + '/results/' + 'gnn_results_' + str(args.seed) + '_' + name_file + '.csv'
+    file_path = new_dir_path + '/gnn_results_' + str(args.seed) + '_' + name_file + '.csv'
     pd.DataFrame.from_dict(results, orient='index').to_csv(file_path)
 
 logging.info('ENDING EXPERIMENT')

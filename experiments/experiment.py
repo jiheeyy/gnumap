@@ -67,7 +67,8 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
                                            lambd=lambd,
                                            n_layers=n_layers,
                                            epochs=epochs, lr=lr,
-                                           fmr=fmr, edr=edr, name_file=name_file)
+                                           fmr=fmr, edr=edr, name_file=name_file,
+                                           alpha=alpha, beta=beta, gnn_type=gnn_type)
         embeds = model.get_embedding(G)
     elif model_name == 'Entropy-SSG':
         model, loss_values = train_entropy_ssg(G, hid_dim=hid_dim,
@@ -86,14 +87,16 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
                                         fmr=fmr, edr=edr,
                                         pred_hid=pred_hid, wd=wd,
                                         drf1=fmr, drf2=fmr, dre1=edr,
-                                        dre2=edr, name_file=name_file)
+                                        dre2=edr, name_file=name_file,
+                                        alpha=alpha, beta=beta, gnn_type=gnn_type)
         embeds = model.get_embedding(G)
     elif model_name == "GNUMAP":  # alpha beta type
         model, embeds, loss_values = train_gnumap(G, hid_dim, out_dim,
                                                   n_layers=n_layers,
-                                                  epochs=epochs, lr=lr, wd=wd, name_file=name_file)
+                                                  epochs=epochs, lr=lr, wd=wd, name_file=name_file,
+                                                  alpha=alpha, beta=beta, gnn_type=gnn_type)
     elif model_name == "SPAGCN":
-        model, embeds, loss_values = train_spagcn(G, cluster_labels, X_ambient.shape[0], hid_dim, out_dim, epochs, n_layers)
+        model, embeds, loss_values = train_spagcn(G, X_ambient.shape[0], hid_dim, out_dim, epochs, n_layers)
     elif model_name == 'PCA':
         model = PCA(n_components=2)
         embeds = model.fit_transform(
@@ -131,7 +134,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         results = None
     else:
         # global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
-                                                #  dataset=dataset)
+        #                                          dataset=dataset)
         print("done with the embedding evaluation")
         results=[]
         # results = {**global_metrics, **local_metrics}

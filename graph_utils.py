@@ -15,6 +15,7 @@ from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected, to_ne
 from scipy.sparse.csgraph import shortest_path
 from scipy.sparse.csgraph import dijkstra
 from scipy.sparse import csr_matrix
+from sklearn import manifold
 
 
 def get_weights(data, neighbours=15, method = 'laplacian', beta=1,
@@ -124,7 +125,7 @@ def deg(index, num_nodes: Optional[int] = None,
 
 
 def convert_to_graph(X, n_neighbours =15, features='none', standardize=True,
-                     radius_knn = 0., featdim = 50, bw = None):                
+                     radius_knn = 0., featdim = 0, bw = None):                
     n = X.shape[0]
     if standardize:
         scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -142,12 +143,16 @@ def convert_to_graph(X, n_neighbours =15, features='none', standardize=True,
         feats = torch.from_numpy(X).float()
     elif features == 'ones':
         feats = torch.ones(n, featdim)
+    elif features== 'lap':
+        lap = manifold.SpectralEmbedding(n_components=10, n_neighbors=n_neighbours)
+        feats = lap.fit_transform(X)
+        feats = torch.tensor(feats).float()
     else:
         feats = torch.eye(n)
         
     new_data = Data(x=feats, edge_index=edge_index, # 
-                    edge_weight=-(edge_weights - max(edge_weights))/max(edge_weights),
-                    sparse=A.toarray())
+                    edge_weight=torch.exp((edge_weights - max(edge_weights))/max(edge_weights)), #torch.exp(-(edge_weights**2)/(2 * bw**2)),
+                    sparse=A.toarray()) # heat kernel
     ## edge_weight kernel transf 0 1 todo
     return new_data
 
