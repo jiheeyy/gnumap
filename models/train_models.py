@@ -26,6 +26,7 @@ from models.spagcn import SPAGCN
 import matplotlib.pyplot as plt
 from scipy import optimize
 import scipy
+from scipy.sparse import coo_matrix
 
 dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 from codecarbon import OfflineEmissionsTracker
@@ -628,12 +629,15 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_spagcn(G, in_dim, hid_dim, out_dim, epochs, n_layers):
-    sparse = G.sparse
+def train_spagcn(G, in_dim, hid_dim, out_dim, epochs, n_layers, fmr):
     edge_index = G.edge_index
-    feats = G.x
     edge_weight = G.edge_weight
-    model = SPAGCN(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers)
+    feats = G.x
+    try: # synthetic datasets
+        sparse = G.sparse
+    except:
+        sparse = coo_matrix((edge_weight, (edge_index[0], edge_index[1])), shape=(feats.shape[0], feats.shape[0])).toarray()
+    model = SPAGCN(in_dim=feats.shape[0], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
     loss_values = model.fit(feats, sparse, edge_index, edge_weight)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()

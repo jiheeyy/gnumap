@@ -96,7 +96,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
                                                   epochs=epochs, lr=lr, wd=wd, name_file=name_file,
                                                   alpha=alpha, beta=beta, gnn_type=gnn_type)
     elif model_name == "SPAGCN":
-        model, embeds, loss_values = train_spagcn(G, X_ambient.shape[0], hid_dim, out_dim, epochs, n_layers)
+        model, embeds, loss_values = train_spagcn(G, X_ambient.shape[0], hid_dim, out_dim, epochs, n_layers, fmr)
     elif model_name == 'PCA':
         model = PCA(n_components=2)
         embeds = model.fit_transform(
@@ -129,7 +129,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
     except:
         pass
 
-    if np.isnan(loss_values[-1]):
+    if np.isnan(loss_values[-1]).any():
         embeds = None
         results = None
     else:

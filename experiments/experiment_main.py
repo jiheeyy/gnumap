@@ -46,7 +46,7 @@ from experiments.experiment import *
 from metrics.evaluation_metrics import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--name_dataset', type=str, default='Swissroll')
+parser.add_argument('--name_dataset', type=str, default='Cora')
 parser.add_argument('--filename', type=str, default='test')
 parser.add_argument('--split', type=str, default='PublicSplit')
 
@@ -125,7 +125,16 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
         ax1.set_facecolor('black')
 
     # Plotting loss values on the second subplot
-    if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
+    if model_name == 'SPAGCN':
+        columns = list(zip(*loss_values))
+        ax2.plot(columns[0], label='Total')
+        ax2.plot(columns[1], label='KLD Term')
+        ax2.plot(columns[2], label='Lambda * Corr Term')
+        ax2.legend()
+        ax2.set_title('Loss Over Time')
+        ax2.set_xlabel('Epoch')
+        ax2.set_ylabel('Loss Components')
+    elif model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
         ax2.plot(loss_values, color='blue')
         ax2.set_title('Loss Over Time')
         ax2.set_xlabel('Epoch')
@@ -151,7 +160,7 @@ hyperparameters = {
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'SPAGCN':{'fmr':fmr_array, 'edr':edr_array},
+    'SPAGCN':{'fmr':fmr_array, 'edr':edr_array}, # TODO: implement edr
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{}
 }
 args_params = {
@@ -173,7 +182,7 @@ for model_name in args.jm:
     if model_name =='GRACE':
         out_dim=X_ambient.shape[1]
     else:
-        out_dim=X_manifold.shape[1]
+        out_dim=min(X_manifold.shape[1],2) # Cannot output 1433 on Cora
 
     for combination in product(*model_hyperparameters.values()):
         params = dict(zip(model_hyperparameters.keys(), combination))

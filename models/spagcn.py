@@ -25,13 +25,14 @@ import matplotlib.pyplot as plt
 
 class SPAGCN(nn.Module):
     def __init__(self,
-                 in_dim=1000,
+                 in_dim,
                  nhid=256,
                  out_dim=2,
                  epochs=500,
-                 n_layers=2):
+                 n_layers=2,
+                 fmr=0):
         super().__init__()
-        self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=0)
+        self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=fmr)
         self.epochs, self.in_dim, self.out_dim = epochs, in_dim, out_dim
         self.alpha, self.beta = self.find_ab_params(spread=5, min_dist=0.00001)
         
@@ -56,7 +57,7 @@ class SPAGCN(nn.Module):
         """
         current_embedding = self.gc(features, edge_index)
         lowdim_dist = torch.cdist(current_embedding,current_embedding)
-        q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta))) # observed min 0.1, mean 0.4, max 1
+        q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
         return current_embedding, q
 
     def loss_function(self, p, q):
@@ -66,7 +67,6 @@ class SPAGCN(nn.Module):
             eps = 1e-9 # To prevent log(0)
             return - (20* torch.sum(highd * torch.log(lowd + eps)) + torch.sum((1 - highd) * torch.log(1 - lowd + eps)))
         loss = CE(torch.triu(p, diagonal=1), torch.triu(q, diagonal=1)) / self.in_dim # divide loss by num(data points)
-        # TODO: PUT UPPER DIAGONAL
         return loss
 
     def density_r(self, array, dist):
@@ -75,7 +75,7 @@ class SPAGCN(nn.Module):
         r = siglog(r1/r2) # for stability
         return r
 
-    def fit(self, features, sparse, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0, dens_lambda=100.0):
+    def fit(self, features, sparse, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0, dens_lambda=30000.0):
         loss_values = []
         print("Starting fit.")
         if opt == "sgd":
@@ -112,11 +112,10 @@ class SPAGCN(nn.Module):
             cov_matrix = torch.cov(torch.stack((rp,rq)))
             corr = cov_matrix[0,1] / torch.pow(cov_matrix[0,0]*cov_matrix[1,1],0.5)
 
-            loss = self.loss_function(p, q) #- dens_lambda * corr
+            loss = self.loss_function(p, q) - dens_lambda * corr
             loss_np = loss.item()
-            print("corr ", corr)
             print("Epoch ", epoch, " |  Loss ", loss_np)
-            loss_values.append(loss_np)
+            loss_values.append([loss_np, self.loss_function(p, q).item(), (dens_lambda * corr).item()])
 
             loss.backward()
             optimizer.step()
