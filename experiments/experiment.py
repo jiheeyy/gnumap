@@ -31,7 +31,7 @@ from models.baseline_models import *
 from models.train_models import *
 from metrics.evaluation_metrics import *
 from gnumap.umap_functions import *
-from models.spagcn import *
+from models.gnumap2 import *
 from experiments.create_dataset import *
 
 
@@ -43,6 +43,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
                 random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20):
     # num_classes = int(data.y.max().item()) + 1
     loss_values = [1] # placeholder for 6 models without training
+    rp = None
 
     if model_name == 'DGI':  # a b type
         model, loss_values = train_dgi(G, hid_dim=hid_dim, out_dim=out_dim,
@@ -95,8 +96,10 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
                                                   n_layers=n_layers,
                                                   epochs=epochs, lr=lr, wd=wd, name_file=name_file,
                                                   alpha=alpha, beta=beta, gnn_type=gnn_type)
-    elif model_name == "SPAGCN":
-        model, embeds, loss_values = train_spagcn(G, X_ambient.shape[0], hid_dim, out_dim, epochs, n_layers, fmr)
+    elif model_name == "GNUMAP2":
+        model, embeds, loss_values, rp = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr)
+    elif model_name == "SPAGCN":  # alpha TODO
+        model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, n_layers, fmr)
     elif model_name == 'PCA':
         model = PCA(n_components=2)
         embeds = model.fit_transform(
@@ -128,29 +131,53 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         loss_values = [item.item() for item in loss_values]
     except:
         pass
-
-    if np.isnan(loss_values[-1]).any():
+    
+    if model_name == 'GNUMAP2':
+        if np.isnan(loss_values[-1][:2]).any():
+            embeds = None
+            results = None
+        else:
+            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+                                                     dataset=dataset)
+            print("done with the embedding evaluation")
+            results=[]
+            results = {**global_metrics, **local_metrics}
+            results['model_name'] = model_name
+            results['out_dim'] = out_dim
+            results['hid_dim'] = hid_dim
+            results['n_neighbors'] = n_neighbors
+            results['min_dist'] = min_dist
+            results['lr'] = lr
+            results['edr'] = edr
+            results['fmr'] = fmr
+            results['tau'] = tau
+            results['lambd'] = lambd
+            results['pred_hid'] = pred_hid
+            results['alpha_gnn'] = alpha
+            results['beta_gnn'] = beta
+            results['gnn_type'] = gnn_type
+    elif np.isnan(loss_values[-1]).any():
         embeds = None
         results = None
     else:
-        # global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
-        #                                          dataset=dataset)
+        global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+                                                 dataset=dataset)
         print("done with the embedding evaluation")
         results=[]
-        # results = {**global_metrics, **local_metrics}
-        # results['model_name'] = model_name
-        # results['out_dim'] = out_dim
-        # results['hid_dim'] = hid_dim
-        # results['n_neighbors'] = n_neighbors
-        # results['min_dist'] = min_dist
-        # results['lr'] = lr
-        # results['edr'] = edr
-        # results['fmr'] = fmr
-        # results['tau'] = tau
-        # results['lambd'] = lambd
-        # results['pred_hid'] = pred_hid
-        # results['alpha_gnn'] = alpha
-        # results['beta_gnn'] = beta
-        # results['gnn_type'] = gnn_type
+        results = {**global_metrics, **local_metrics}
+        results['model_name'] = model_name
+        results['out_dim'] = out_dim
+        results['hid_dim'] = hid_dim
+        results['n_neighbors'] = n_neighbors
+        results['min_dist'] = min_dist
+        results['lr'] = lr
+        results['edr'] = edr
+        results['fmr'] = fmr
+        results['tau'] = tau
+        results['lambd'] = lambd
+        results['pred_hid'] = pred_hid
+        results['alpha_gnn'] = alpha
+        results['beta_gnn'] = beta
+        results['gnn_type'] = gnn_type
 
-    return (model, results, embeds, loss_values)
+    return (model, results, embeds, loss_values, rp)

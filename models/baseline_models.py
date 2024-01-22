@@ -28,12 +28,9 @@ class GCN(nn.Module):
         self.convs = nn.ModuleList()
         if n_layers > 1:
             self.convs.append(GCNConv(in_dim, hid_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
-            print('baseline/firstGCNCONV')
             for i in range(n_layers - 2):
                 self.convs.append(GCNConv(hid_dim, hid_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
-                print(print('baseline/middleGCNCONV'))
             self.convs.append(GCNConv(hid_dim, out_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
-            print('baseline/finalGCNCONV')
         else:
             self.convs.append(GCNConv(in_dim, out_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
 

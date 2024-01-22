@@ -260,7 +260,9 @@ def spearman_correlation_eval(G, X_new, random_seed=100):
     dataset_size = G.x.shape[0]
 
     ind1, ind2 = torch.triu_indices(dataset_size, dataset_size, 1)
-    dist_high = shortest_path(to_scipy_sparse_matrix(G.edge_index, num_nodes=G.x.shape[0]),directed = False)[ind1,ind2]
+
+    sparse_matrix = to_scipy_sparse_matrix(G.edge_index, num_nodes=G.x.shape[0])
+    dist_high = shortest_path(csr_matrix(sparse_matrix),directed = False)[ind1,ind2]
     dist_high[np.isinf(dist_high)] = np.max(dist_high[~np.isinf(dist_high)])*2
     dist_low = distance_matrix(X_new, X_new)[ind1,ind2]
     dist_high = dist_high.reshape([-1])
@@ -663,7 +665,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     X_manifold = MinMaxScaler().fit_transform(X_manifold)
     X_ambient = MinMaxScaler().fit_transform(X_ambient)
     embeds = MinMaxScaler().fit_transform(embeds)
-    if model_name=='GRACE' or dataset in ["Blobs"]:
+    if model_name=='GRACE' or dataset in ["Blobs", "Cora"]:
         sp_manifold = np.nan
         fr_dist =  np.nan
         curve_dist = np.nan
@@ -673,9 +675,6 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
         _,_, sp_manifold, _ = spearman_correlation_numpy(X_manifold, embeds)
         fr_dist = frdist(X_manifold, embeds)
         curve_dist = np.square(X_manifold -  embeds).mean()
-        sp_manifold = np.nan
-        fr_dist =  np.nan
-        curve_dist = np.nan
 
     global_dist = {'frechet': fr_dist,
                     'distance_between_curves': curve_dist,

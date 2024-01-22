@@ -66,7 +66,7 @@ parser.add_argument('--features', type=str, default='lap')  # graph construction
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=bool, default=True)
 parser.add_argument('--jcsv', type=float, default=True)  # make csv?
-parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','SPAGCN', 'GNUMAP',
+parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
                     help='List of models to run')
 args = parser.parse_args()
@@ -101,9 +101,19 @@ def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
         pass
 
 visualize_dataset(X_manifold, cluster_labels, title=args.name_dataset, save_img=save_img,
-                  save_path=new_dir_path + "manifold_" + args.name_dataset + ".png")
+                  save_path=new_dir_path + "/manifold_" + args.name_dataset + ".png")
 # visualize_dataset(X_ambient, cluster_labels, title=args.name_dataset, save_img=save_img,
 #                   save_path=os.getcwd() + '/results/' + "ambient_" + name_file + ".png")
+
+def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
+    if rp is not None:
+        plt.figure (figsize=(8, 6))
+        plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=rp, cmap=plt.cm.viridis)
+        final_save_path = os.path.join(save_path, 'DENSITY.png')
+        plt.savefig(final_save_path, format='png', dpi=300)
+        plt.close()
+    else:
+        pass
 
 
 def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
@@ -125,7 +135,7 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
         ax1.set_facecolor('black')
 
     # Plotting loss values on the second subplot
-    if model_name == 'SPAGCN':
+    if model_name == 'GNUMAP2':
         columns = list(zip(*loss_values))
         ax2.plot(columns[0], label='Total')
         ax2.plot(columns[1], label='KLD Term')
@@ -151,16 +161,17 @@ beta_array = [1] #np.arange(0,1,0.5)
 lambda_array = [1e-5] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
 tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
-fmr_array = [0.2] #[0.1,0.6]
+fmr_array = [0] #[0, 0.1,0.2,0.6]
 edr_array = [0.5] #[0,0.1]
-# got pretty spagcn with fmr edr 0.1 0
+# got pretty GNUMAP2 with fmr edr 0.1 0
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
     'GNUMAP':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'SPAGCN':{'fmr':fmr_array, 'edr':edr_array}, # TODO: implement edr
+    'GNUMAP2':{'fmr':fmr_array}, # TODO: implement edr
+    'SPAGCN': {'fmr':fmr_array},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{}
 }
 args_params = {
@@ -175,19 +186,19 @@ args_params = {
 
 
 for model_name in args.jm:
-    if model_name not in ['DGI','BGRL','GRACE','CCA-SSG','SPAGCN', 'GNUMAP',
+    if model_name not in ['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
                             raise ValueError('Invalid model name')
     model_hyperparameters = hyperparameters[model_name]
     if model_name =='GRACE':
-        out_dim=X_ambient.shape[1]
+        out_dim=3
     else:
-        out_dim=min(X_manifold.shape[1],2) # Cannot output 1433 on Cora
+        out_dim=min(X_manifold.shape[1],2)
 
     for combination in product(*model_hyperparameters.values()):
         params = dict(zip(model_hyperparameters.keys(), combination))
 
-        mod, res, out, loss_values = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
+        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
                     out_dim=out_dim, name_file=name_file, 
                     random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
                     **args_params,
@@ -195,6 +206,8 @@ for model_name in args.jm:
         if save_img:
             visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
             new_dir_path) 
+            # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            # new_dir_path)
         else:
             pass
         

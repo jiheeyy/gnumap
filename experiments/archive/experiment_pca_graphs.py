@@ -64,7 +64,7 @@ for name in ['Cora','Pubmed']:
     new_data = G
     for model_name in ['PCA','LaplacianEigenmap','Isomap','TSNE','UMAP','DenseMAP',
                        'DGI', 'GRACE', 'CCA-SSG', 'Entropy-SSG', 'BGRL',
-                       'GNUMAP', 'SpaGCN']:
+                       'GNUMAP', 'GNUMAP2','SPAGCN']:
         mod, res, embeds = experiment(model_name, new_data,X,
                             y_true, None,
                             patience=20, epochs=200,

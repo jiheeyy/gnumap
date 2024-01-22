@@ -31,39 +31,39 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         X_ambient, cluster_labels = datasets.make_blobs( n_samples=n_samples, centers=centers, 
                                         cluster_std=cluster_std, random_state=random_state)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
         X_manifold = X_ambient
 
     elif name == 'Sphere':
         X_ambient, X_manifold, cluster_labels   = create_sphere(r = 1, size = n_samples,  a = a, b=b, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == 'Circles':
         X_ambient, X_manifold, cluster_labels =create_circles(ratio = ratio_circles, size = n_samples, a = a, b=b, 
                                                               noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                            radius_knn = radius_knn, bw = bw,featdim = 50,)
+                            radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == 'Moons':
         X_ambient, X_manifold, cluster_labels = create_moons(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == 'Swissroll':
         X_ambient, X_manifold, cluster_labels = create_swissroll(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_manifold, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == "Trefoil":
         X_ambient, X_manifold, cluster_labels = create_trefoil(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
         
     elif name == "Helix":
@@ -72,7 +72,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
                                                              radius_torus=radius_torus, 
                                                              radius_tube=radius_tube, nb_loops=nb_loops)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
              
     elif name == 'SBM':
@@ -86,6 +86,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
+        print('create_dataset dimensions',X_manifold.shape)
 
     elif name == 'Pubmed':
         dataset = Planetoid(root='Planetoid', name='Pubmed', transform=NormalizeFeatures())

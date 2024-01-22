@@ -22,6 +22,7 @@ from models.bgrl import BGRL
 from models.data_augmentation import *
 from models.clgr import CLGR
 from models.vgnae import *
+from models.gnumap2 import GNUMAP2
 from models.spagcn import SPAGCN
 import matplotlib.pyplot as plt
 from scipy import optimize
@@ -629,7 +630,7 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_spagcn(G, in_dim, hid_dim, out_dim, epochs, n_layers, fmr):
+def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr):
     edge_index = G.edge_index
     edge_weight = G.edge_weight
     feats = G.x
@@ -637,8 +638,18 @@ def train_spagcn(G, in_dim, hid_dim, out_dim, epochs, n_layers, fmr):
         sparse = G.sparse
     except:
         sparse = coo_matrix((edge_weight, (edge_index[0], edge_index[1])), shape=(feats.shape[0], feats.shape[0])).toarray()
-    model = SPAGCN(in_dim=feats.shape[0], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
-    loss_values = model.fit(feats, sparse, edge_index, edge_weight)
+    model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
+    loss_values, rp = model.fit(feats, sparse, edge_index, edge_weight)
+    embeds = model.predict(feats, edge_index)[0]
+    embeds = embeds.detach().numpy()
+    return model, embeds, loss_values, rp
+
+def train_spagcn(G, hid_dim, out_dim, epochs, n_layers, fmr):
+    edge_index = G.edge_index
+    feats = G.x
+    model = SPAGCN(in_dim=feats.shape[1], hid_dim=hid_dim, out_dim=out_dim, \
+        epochs=epochs, n_layers=n_layers, fmr=fmr, n_clusters=10, spagcn_alpha=1)
+    loss_values = model.fit(feats, edge_index)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values
