@@ -41,6 +41,7 @@ from scipy.sparse.csgraph import shortest_path
 from scipy.sparse.csgraph import dijkstra
 from torch_geometric.utils import to_scipy_sparse_matrix
 from scipy.sparse import csr_matrix
+from scipy import linalg
 
 
 from gnumap.umap_functions import prob_high_dim, find_ab_params
@@ -657,6 +658,55 @@ def regression_eval(X, y, n_splits=10, **kwargs):
     avg_acc = sum_acc/n_acc
     return avg_acc
 
+def fretchet_inception_distance(X_manifold, embeds, eps=1e-6):
+    """Numpy implementation of the Frechet Distance.
+    The Frechet distance between two multivariate Gaussians X_1 ~ N(mu_1, C_1)
+    and X_2 ~ N(mu_2, C_2) is
+            d^2 = ||mu_1 - mu_2||^2 + Tr(C_1 + C_2 - 2*sqrt(C_1*C_2)).
+
+    Stable version by Dougal J. Sutherland.
+    
+    Params:
+    X_manifold : Ground truth 2D Numpy array
+    
+    embeds: Predicted embedding 2D Numpy array
+
+    Returns:
+    --   : The Frechet Distance.
+    """
+    mu1 = np.mean(X_manifold, axis=0)
+    sigma1 = np.cov(X_manifold, rowvar=False)
+    mu2 = np.mean(embeds, axis=0)
+    sigma2 = np.cov(embeds, rowvar=False)
+
+    mu1 = np.atleast_1d(mu1)
+    mu2 = np.atleast_1d(mu2)
+
+    sigma1 = np.atleast_2d(sigma1)
+    sigma2 = np.atleast_2d(sigma2)
+
+    diff = mu1 - mu2
+
+    # Product might be almost singular
+    covmean, _ = linalg.sqrtm(sigma1.dot(sigma2), disp=False)
+    if not np.isfinite(covmean).all():
+        msg = ('fid calculation produces singular product; '
+               'adding %s to diagonal of cov estimates') % eps
+        print(msg)
+        offset = np.eye(sigma1.shape[0]) * eps
+        covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
+
+    # Numerical error might give slight imaginary component
+    if np.iscomplexobj(covmean):
+        if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
+            m = np.max(np.abs(covmean.imag))
+            raise ValueError('Imaginary component {}'.format(m))
+        covmean = covmean.real
+
+    tr_covmean = np.trace(covmean)
+
+    return (diff.dot(diff) + np.trace(sigma1)
+            + np.trace(sigma2) - 2 * tr_covmean)
 
 def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
@@ -673,17 +723,16 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     elif dataset in ["Trefoil", "Helix", "Swissroll", "Sphere", "Helix",
                    "Swissroll", "Moons", "Circles"]:
         _,_, sp_manifold, _ = spearman_correlation_numpy(X_manifold, embeds)
-        fr_dist = frdist(X_manifold, embeds)
+        fr_dist = fretchet_inception_distance(X_manifold, embeds)
         curve_dist = np.square(X_manifold -  embeds).mean()
-
     global_dist = {'frechet': fr_dist,
                     'distance_between_curves': curve_dist,
                     'acc': svm_eval(embeds, np.array(cluster_labels)),
-                    'acc_linear': logistic_eval(embeds, np.array(cluster_labels), n_splits=10, penalty=None),
                     'acc_X': svm_eval(X_ambient,np.array(cluster_labels)),
                     'acc_manifold': svm_eval(X_manifold,np.array(cluster_labels)),
+                    'acc_linear': logistic_eval(embeds, np.array(cluster_labels), n_splits=10, penalty=None),
                     'acc_linear_X': logistic_eval(X_ambient, np.array(cluster_labels), n_splits=10, penalty=None),
-                    'acc_linear_X': logistic_eval(X_manifold, np.array(cluster_labels), n_splits=10, penalty=None),
+                    'acc_linear_manifold': logistic_eval(X_manifold, np.array(cluster_labels), n_splits=10, penalty=None),
                     'silhouette_embeds': silhouette_score(embeds, np.array(cluster_labels)),
                     'silhouette_X': silhouette_score(X_ambient, np.array(cluster_labels)),
                     'silhouette_manifold': silhouette_score(X_manifold, np.array(cluster_labels)),
@@ -695,8 +744,6 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
                     'davies_bouldin_score_manifold': davies_bouldin_score(X_manifold, np.array(cluster_labels)),
                     'spearman_graph': sp,
                     'spearman_manifold': sp_manifold}
-
-
 
     local = {}
     for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
@@ -730,3 +777,5 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     local['corr_density'] = np.corrcoef(average_distance_manifold, average_distance_embeds)[0,1]
 
     return global_dist, local
+
+# 'spearman_graph': sp, is sowon's sp

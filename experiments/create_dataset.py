@@ -86,7 +86,6 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
-        print('create_dataset dimensions',X_manifold.shape)
 
     elif name == 'Pubmed':
         dataset = Planetoid(root='Planetoid', name='Pubmed', transform=NormalizeFeatures())

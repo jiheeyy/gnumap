@@ -6,7 +6,6 @@ import torch_geometric
 from torch_geometric.data import Data
 from torch_geometric.utils import remove_self_loops, negative_sampling
 from torch_geometric.utils import add_remaining_self_loops
-from torch_geometric.utils import to_scipy_sparse_matrix, to_networkx, from_scipy_sparse_matrix
 from torch_geometric.transforms import RandomLinkSplit, RandomNodeSplit, NormalizeFeatures
 from scipy.sparse.csgraph import shortest_path
 from scipy.sparse.csgraph import dijkstra
@@ -206,8 +205,8 @@ for model_name in args.jm:
         if save_img:
             visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
             new_dir_path) 
-            # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-            # new_dir_path)
+            visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            new_dir_path)
         else:
             pass
         
