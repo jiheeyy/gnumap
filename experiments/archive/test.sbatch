@@ -24,10 +24,10 @@ source /opt/conda/etc/profile.d/conda.sh
 conda activate gnumap
 
 result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
-current_directory=$(pwd)
-echo "Current Directory: $current_directory"
 echo "result file is ${result_file}"
-cd $HOME/gnumap/experiments
+# For PEANUT. MIDWAY3 $HOME/gnumap/experiments
+cd /home/jiheeyou/Desktop/gnumap/experiments
+
 
 
 python experiment_main.py --name_dataset $1 --filename $2 --n_neighbours $3 --save_img 0 --seed $SLURM_ARRAY_TASK_ID
