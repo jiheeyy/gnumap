@@ -24,6 +24,7 @@ source /opt/conda/etc/profile.d/conda.sh
 conda activate gnumap
 
 result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+current_directory=$(pwd)
 echo "Current Directory: $current_directory"
 echo "result file is ${result_file}"
 cd $HOME/gnumap/experiments
