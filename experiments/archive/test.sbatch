@@ -3,7 +3,7 @@
 #SBATCH --job-name=array
 #SBATCH --output=logs/array_%A_%a.out
 #SBATCH --error=logs/array_%A_%a.err
-#SBATCH --array=1-50
+#SBATCH --array=1-100
 #SBATCH --time=20:00:00
 #SBATCH --partition=fast
 #SBATCH --nodes=1
@@ -28,8 +28,4 @@ echo "result file is ${result_file}"
 cd $HOME/gnumap/experiments
 
 
-if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-    python experiment_main.py --name_dataset $1 --filename $result_file --seed $SLURM_ARRAY_TASK_ID --save_img yes
-else
-    python experiment_main.py --name_dataset $1 --filename $result_file --seed $SLURM_ARRAY_TASK_ID
-fi
+python experiment_main.py --name_dataset $1 --filename $2 --n_neighbours $3 --save_img 0 --seed $SLURM_ARRAY_TASK_ID

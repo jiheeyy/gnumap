@@ -63,7 +63,7 @@ parser.add_argument('--bw', type=float, default=1.)  # graph construction
 parser.add_argument('--features', type=str, default='lap')  # graph construction
 
 parser.add_argument('--seed', type=int, default=1)
-parser.add_argument('--save_img', type=bool, default=True)
+parser.add_argument('--save_img', type=int, default=1)
 parser.add_argument('--jcsv', type=float, default=True)  # make csv?
 parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
@@ -73,7 +73,7 @@ args = parser.parse_args()
 seed = args.seed
 np.random.seed(seed)
 torch.manual_seed(seed)
-save_img = args.save_img
+save_img = bool(args.save_img)
 name_file = args.name_dataset + "_" + args.filename
 new_dir_path = os.path.join(os.getcwd(), 'results/',args.filename)
 if not os.path.exists(new_dir_path):
@@ -197,24 +197,27 @@ for model_name in args.jm:
     for combination in product(*model_hyperparameters.values()):
         params = dict(zip(model_hyperparameters.keys(), combination))
 
-        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
-                    out_dim=out_dim, name_file=name_file, 
-                    random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
-                    **args_params,
-                    **params)
-        if save_img:
-            visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-            new_dir_path) 
-            visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-            new_dir_path)
-        else:
+        try:
+            mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
+                        out_dim=out_dim, name_file=name_file, 
+                        random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
+                        **args_params,
+                        **params)
+            if save_img:
+                visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+                new_dir_path) 
+                visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+                new_dir_path)
+            else:
+                pass
+        except:
             pass
         
         logging.info(name_file+str(params))
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}
 
 if args.jcsv:
-    file_path = new_dir_path + '/gnn_results_' + str(args.seed) + '_' + name_file + '.csv'
+    file_path = new_dir_path + '/' + args.name_dataset + '_' + str(args.seed) + '.csv'
     pd.DataFrame.from_dict(results, orient='index').to_csv(file_path)
 
 logging.info('ENDING EXPERIMENT')
