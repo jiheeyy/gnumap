@@ -30,4 +30,4 @@ cd /home/jiheeyou/Desktop/gnumap/experiments
 
 
 
-python experiment_main.py --name_dataset $1 --filename $2 --n_neighbours $3 --save_img 0 --seed $SLURM_ARRAY_TASK_ID
+python experiment_main.py --name_dataset $1 --filename $2 --n_neighbours $3 --result_file $result_file --save_img 0 --seed $SLURM_ARRAY_TASK_ID

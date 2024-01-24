@@ -1,4 +1,4 @@
-2024-01-23 17:13:47,603 - INFO - Requested http://ipinfo.io/json
-2024-01-23 17:13:48,848 - INFO - STARTING EXPERIMENT
-2024-01-23 17:14:15,665 - INFO - Swissroll_Swissroll_defaultab_300{'fmr': 0}
-2024-01-23 17:14:15,671 - INFO - ENDING EXPERIMENT
+2024-01-23 18:24:51,026 - INFO - Requested http://ipinfo.io/json
+2024-01-23 18:24:51,828 - INFO - STARTING EXPERIMENT
+2024-01-23 18:25:22,953 - INFO - result_file{'alpha': 0.5, 'beta': 1, 'gnn_type': 'symmetric'}
+2024-01-23 18:25:22,959 - INFO - ENDING EXPERIMENT

@@ -65,16 +65,17 @@ parser.add_argument('--features', type=str, default='lap')  # graph construction
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=int, default=1)
 parser.add_argument('--jcsv', type=float, default=True)  # make csv?
-parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
+parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
                     help='List of models to run')
+parser.add_argument('--result_file', type=str, default='result_file')
 args = parser.parse_args()
 
 seed = args.seed
 np.random.seed(seed)
 torch.manual_seed(seed)
 save_img = bool(args.save_img)
-name_file = args.name_dataset + "_" + args.filename
+name_file = args.result_file
 new_dir_path = os.path.join(os.getcwd(), 'results/',args.filename)
 if not os.path.exists(new_dir_path):
     os.makedirs(new_dir_path)
