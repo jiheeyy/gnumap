@@ -55,6 +55,7 @@ parser.add_argument('--n_layers', type=int, default=2)
 parser.add_argument('--n_neighbours', type=int, default=300)
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--hid_dim', type=int, default=256)
+parser.add_argument('--out_dim', type=int, default=None)
 
 parser.add_argument('--a', type=float, default=1.)  # data construction
 parser.add_argument('--b', type=float, default=1.)  # data construction
@@ -120,13 +121,17 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
     if X is not None:
-        if model_name == 'GRACE':
+        if model_name == 'GRACE' or X.shape[1] == 3:
             # 3D scatter plot
             ax1 = fig.add_subplot(121, projection='3d')
             ax1.scatter(X[:, 0], X[:, 1], X[:, 2], c=cluster_labels, cmap=plt.cm.Spectral)
-        else:
+        elif X.shape[1] == 2:
             # 2D scatter plot
             ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
+        else:
+            # Output dimension more than 3
+            fig.patch.set_facecolor('black')
+            ax1.set_facecolor('black')
 
         ax1.set_title(title)
     else:
@@ -190,7 +195,9 @@ for model_name in args.jm:
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
                             raise ValueError('Invalid model name')
     model_hyperparameters = hyperparameters[model_name]
-    if model_name =='GRACE':
+    if args.out_dim:
+        out_dim = args.out_dim
+    elif model_name =='GRACE':
         out_dim=3
     else:
         out_dim=min(X_manifold.shape[1],2)
