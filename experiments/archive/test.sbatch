@@ -3,7 +3,7 @@
 #SBATCH --job-name=array
 #SBATCH --output=logs/array_%A_%a.out
 #SBATCH --error=logs/array_%A_%a.err
-#SBATCH --array=1-100
+#SBATCH --array=1-1
 #SBATCH --time=20:00:00
 #SBATCH --partition=fast
 #SBATCH --nodes=1
@@ -30,4 +30,4 @@ cd /home/jiheeyou/Desktop/gnumap/experiments
 
 
 
-python experiment_main.py --name_dataset $1 --filename $2 --n_neighbours $3 --result_file $result_file --save_img 0 --seed $SLURM_ARRAY_TASK_ID
+python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img $4 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
