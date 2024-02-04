@@ -37,7 +37,7 @@ class GNUMAP2(nn.Module):
         super().__init__()
         self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=fmr)
         self.epochs, self.in_dim, self.out_dim = epochs, in_dim, out_dim
-        self.alpha, self.beta = self.find_ab_params(spread=5, min_dist=0.0001)
+        self.alpha, self.beta = self.find_ab_params(spread=5, min_dist=0.001)
         
     def find_ab_params(self, spread=1, min_dist=0.1):
         """Exact UMAP function for fitting a, b params"""
@@ -75,7 +75,7 @@ class GNUMAP2(nn.Module):
         loss = CE(torch.triu(p, diagonal=1), torch.triu(q, diagonal=1), reg, n_items)
         return loss
 
-    def sampling_loss_function(self, p, q, edge_index): # works with sums, basically the same
+    def sampling_loss_function(self, p, q, reg, n_items, edge_index): # works with sums, basically the same
         def positive(highd, lowd):
             eps = 1e-9  # To prevent log(0)
             return -torch.sum(highd * torch.log(lowd + eps))  # positive term, negative term
@@ -91,7 +91,8 @@ class GNUMAP2(nn.Module):
         negative_loss = negative(p, q, row_neg, col_neg)
 
         # Combine positive and negative losses
-        total_loss = positive_loss + negative_loss
+        total_loss = (10 * positive_loss + negative_loss) / n_items
+        print(reg)
 
         return total_loss
 
@@ -122,11 +123,11 @@ class GNUMAP2(nn.Module):
             weight = edge_weight[i]
             p[source, target] = weight # create p from edge_index, edge_weight
 
-        sparse_p = to_scipy_sparse_matrix(edge_index, num_nodes=features.shape[0])
-        pdist = shortest_path(csr_matrix(sparse_p),directed = False)
-        pdist[np.isinf(pdist)] = np.max(pdist[~np.isinf(pdist)])*2
+        # sparse_p = to_scipy_sparse_matrix(edge_index, num_nodes=features.shape[0])
+        # pdist = shortest_path(csr_matrix(sparse_p),directed = False)
+        # pdist[np.isinf(pdist)] = np.max(pdist[~np.isinf(pdist)])*2
 
-        rp = self.density_r(p, pdist) # edge weights, distance between datapoints are same in highdim
+        #rp = self.density_r(p, pdist) # edge weights, distance between datapoints are same in highdim
         """ 
         q is probability distribution in lowdim
         q will be updated at each forward pass
@@ -137,27 +138,26 @@ class GNUMAP2(nn.Module):
         neg_edge_count = torch.sum(torch.eq(p, 0))
         pos_edge_count = n_items - neg_edge_count
         reg = neg_edge_count / pos_edge_count
-        print(neg_edge_count, reg)
 
         self.train()
-        corr_was_nan = False
         for epoch in range(self.epochs):
             optimizer.zero_grad()
             current_embedding, q = self(features, edge_index)
             q.requires_grad_(True)
-            rq = self.density_r(q, torch.cdist(current_embedding, current_embedding))
+            # rq = self.density_r(q, torch.cdist(current_embedding, current_embedding))
 
-            cov_matrix = torch.cov(torch.stack((rp,rq)))
-            corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
+            # cov_matrix = torch.cov(torch.stack((rp,rq)))
+            # corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
             #loss = self.loss_function(p, q, reg, n_items) - corr # good for sphere with default ab_params
-            loss = self.loss_function(p, q, reg, n_items)
+            #loss = self.loss_function(p, q, reg, n_items)
+            loss = self.sampling_loss_function(p, q, reg, n_items,edge_index)
             loss.backward()
             optimizer.step()
 
             loss_np = loss.item()
-            loss_values.append([loss_np, loss.item(), corr.item()])
-            print("Epoch ", epoch, " |  Loss ", loss_np, " |  Corr ",corr)
-        return loss_values, rp.detach().numpy()
+            loss_values.append([loss_np, loss.item(), -1]) #corr.item()
+            print("Epoch ", epoch, " |  Loss ", loss_np) # Corr ",corr
+        return loss_values #rp.detach().numpy()
 
     def predict(self, features, edge_index):
         current_embedding, q = self(features, edge_index)

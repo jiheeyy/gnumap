@@ -715,7 +715,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     X_manifold = MinMaxScaler().fit_transform(X_manifold)
     X_ambient = MinMaxScaler().fit_transform(X_ambient)
     embeds = MinMaxScaler().fit_transform(embeds)
-    if model_name=='GRACE' or dataset in ["Blobs", "Cora", "Pubmed", "Citeseer"]:
+    if embeds.shape[1] == 3 or dataset in ["Blobs", "Cora", "Pubmed", "Citeseer"]:
         sp_manifold = np.nan
         fr_dist =  np.nan
         curve_dist = np.nan

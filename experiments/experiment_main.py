@@ -66,7 +66,7 @@ parser.add_argument('--features', type=str, default='lap')  # graph construction
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=int, default=1)
 parser.add_argument('--jcsv', type=float, default=True)  # make csv?
-parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP',
+parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
                     help='List of models to run')
 parser.add_argument('--result_file', type=str, default='result_file')
@@ -140,16 +140,7 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
         ax1.set_facecolor('black')
 
     # Plotting loss values on the second subplot
-    if model_name == 'GNUMAP2':
-        columns = list(zip(*loss_values))
-        ax2.plot(columns[0], label='Total')
-        ax2.plot(columns[1], label='KLD Term')
-        ax2.plot(columns[2], label='Lambda * Corr Term')
-        ax2.legend()
-        ax2.set_title('Loss Over Time')
-        ax2.set_xlabel('Epoch')
-        ax2.set_ylabel('Loss Components')
-    elif model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
+    if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
         ax2.plot(loss_values, color='blue')
         ax2.set_title('Loss Over Time')
         ax2.set_xlabel('Epoch')
@@ -205,20 +196,18 @@ for model_name in args.jm:
     for combination in product(*model_hyperparameters.values()):
         params = dict(zip(model_hyperparameters.keys(), combination))
 
-        try:
-            mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
-                        out_dim=out_dim, name_file=name_file, 
-                        random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
-                        **args_params,
-                        **params)
-            if save_img:
-                visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-                new_dir_path) 
-                visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-                new_dir_path)
-            else:
-                pass
-        except:
+        # try:
+        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
+                    out_dim=out_dim, name_file=name_file, 
+                    random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
+                    **args_params,
+                    **params)
+        if save_img:
+            visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            new_dir_path) 
+            # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            # new_dir_path)
+        else:
             pass
         
         logging.info(name_file+str(params))

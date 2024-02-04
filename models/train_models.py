@@ -639,17 +639,19 @@ def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr):
     except:
         sparse = coo_matrix((edge_weight, (edge_index[0], edge_index[1])), shape=(feats.shape[0], feats.shape[0])).toarray()
     model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
-    loss_values, rp = model.fit(feats, sparse, edge_index, edge_weight)
+    loss_values = model.fit(feats, sparse, edge_index, edge_weight)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()
-    return model, embeds, loss_values, rp
+    return model, embeds, loss_values
 
-def train_spagcn(G, hid_dim, out_dim, epochs, n_layers, fmr):
-    edge_index = G.edge_index
+def train_spagcn(G, hid_dim, out_dim, epochs, fmr):
     feats = G.x
-    model = SPAGCN(in_dim=feats.shape[1], hid_dim=hid_dim, out_dim=out_dim, \
-        epochs=epochs, n_layers=n_layers, fmr=fmr, n_clusters=10, spagcn_alpha=1)
-    loss_values = model.fit(feats, edge_index)
-    embeds = model.predict(feats, edge_index)[0]
+    edge_weight = G.edge_weight
+    edge_index = G.edge_index
+
+    model = SPAGCN(in_dim=feats.shape[1], hid_dim=feats.shape[1], out_dim=out_dim, \
+        epochs=epochs, fmr=fmr)
+    loss_values = model.fit(feats, edge_index, edge_weight)
+    embeds = model.predict(feats, edge_index, edge_weight)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values

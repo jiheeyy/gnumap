@@ -97,30 +97,30 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
                                                   epochs=epochs, lr=lr, wd=wd, name_file=name_file,
                                                   alpha=alpha, beta=beta, gnn_type=gnn_type)
     elif model_name == "GNUMAP2":
-        model, embeds, loss_values, rp = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr)
+        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr)
     elif model_name == "SPAGCN":  # alpha TODO
-        model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, n_layers, fmr)
+        model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, fmr)
     elif model_name == 'PCA':
-        model = PCA(n_components=2)
+        model = PCA(n_components=out_dim)
         embeds = model.fit_transform(
             X_ambient)  # StandardScaler().fit_transform(X) --already standardized when converting graphs
     elif model_name == 'LaplacianEigenmap':
-        model = manifold.SpectralEmbedding(n_components=2, n_neighbors=n_neighbors)
+        model = manifold.SpectralEmbedding(n_components=out_dim, n_neighbors=n_neighbors)
         embeds = model.fit_transform(X_ambient)
     elif model_name == 'Isomap':
-        model = manifold.Isomap(n_components=2)
+        model = manifold.Isomap(n_components=out_dim)
         embeds = model.fit_transform(X_ambient)
     elif model_name == 'TSNE':
-        model = manifold.TSNE(n_components=2, learning_rate='auto',
+        model = manifold.TSNE(n_components=out_dim, learning_rate='auto',
                               init='random', perplexity=perplexity)
         embeds = model.fit_transform(X_ambient)
     elif model_name == 'UMAP':
-        model = umap.UMAP(n_components=2, random_state=random_state,
+        model = umap.UMAP(n_components=out_dim, random_state=random_state,
                           n_neighbors=n_neighbors, min_dist=min_dist)
         embeds = model.fit_transform(X_ambient)
 
     elif model_name == 'DenseMAP':
-        model = umap.UMAP(n_components=2, random_state=random_state,
+        model = umap.UMAP(n_components=out_dim, random_state=random_state,
                           densmap=True, n_neighbors=n_neighbors,
                           min_dist=min_dist)
         embeds = model.fit_transform(X_ambient)
