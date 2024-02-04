@@ -29,5 +29,9 @@ echo "result file is ${result_file}"
 cd /home/jiheeyou/Desktop/gnumap/experiments
 
 
-
-python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img $4 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
+if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+    python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
+else
+    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+    python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
+fi
