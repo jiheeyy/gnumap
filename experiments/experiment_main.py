@@ -196,21 +196,21 @@ for model_name in args.jm:
     for combination in product(*model_hyperparameters.values()):
         params = dict(zip(model_hyperparameters.keys(), combination))
 
-        try:
-            mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
-                        out_dim=out_dim, name_file=name_file, 
-                        random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
-                        **args_params,
-                        **params)
-            if save_img:
-                visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-                new_dir_path) 
-                # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-                # new_dir_path)
-            else:
-                pass
-        except:
+        # try:
+        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
+                    out_dim=out_dim, name_file=name_file, 
+                    random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
+                    **args_params,
+                    **params)
+        if save_img:
+            visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            new_dir_path) 
+            # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+            # new_dir_path)
+        else:
             pass
+        # except:
+        #     pass
         
         logging.info(name_file+str(params))
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}

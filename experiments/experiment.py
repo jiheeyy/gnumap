@@ -44,6 +44,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
     # num_classes = int(data.y.max().item()) + 1
     loss_values = [1] # placeholder for 6 models without training
     rp = None
+    start_time = time.time()
 
     if model_name == 'DGI':  # a b type
         model, loss_values = train_dgi(G, hid_dim=hid_dim, out_dim=out_dim,
@@ -132,6 +133,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
     except:
         pass
     
+    end_time = time.time()
     if model_name == 'GNUMAP2':
         if np.isnan(loss_values[-1][:2]).any():
             embeds = None
@@ -156,6 +158,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
             results['alpha_gnn'] = alpha
             results['beta_gnn'] = beta
             results['gnn_type'] = gnn_type
+            results['time'] = end_time - start_time
     elif np.isnan(loss_values[-1]).any():
         embeds = None
         results = None
@@ -179,5 +182,6 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         results['alpha_gnn'] = alpha
         results['beta_gnn'] = beta
         results['gnn_type'] = gnn_type
+        results['time'] = end_time - start_time
 
     return (model, results, embeds, loss_values, rp)

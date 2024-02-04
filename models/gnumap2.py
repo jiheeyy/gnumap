@@ -54,47 +54,56 @@ class GNUMAP2(nn.Module):
         params, covar = curve_fit(curve, xv, yv)
         return params[0], params[1]
 
-    def forward(self, features, edge_index):
+    # def forward(self, features, edge_index):
+    #     """
+    #     Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
+    #     """
+    #     row_neg, col_neg = negative_sampling(edge_index)
+    #     # Positive edges denoted by edge_index
+    #     # Negative edges denoted by row_neg, col_neg
+
+    #     current_embedding = self.gc(features, edge_index)
+
+    #     # I want to make these two lines faster by sampling only from edge_index and row_neg, col_neg
+    #     lowdim_dist = torch.cdist(current_embedding,current_embedding)
+    #     q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
+    #     return current_embedding, q
+    def forward(self, features, edge_index, row_neg=None, col_neg=None):
         """
         Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
         """
         current_embedding = self.gc(features, edge_index)
-        lowdim_dist = torch.cdist(current_embedding,current_embedding)
-        q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
+
+        if row_neg is None or col_neg is None:
+            q = None
+        else:
+            # Positive edges denoted by edge_index
+            # Negative edges denoted by row_neg, col_neg
+            source_embeddings = current_embedding[edge_index[0]]
+            target_embeddings = current_embedding[edge_index[1]]
+            pos_diff = source_embeddings - target_embeddings
+            pos_p_norm_distances = torch.norm(pos_diff, p=2, dim=1)
+
+            source_neg_embeddings = current_embedding[row_neg]
+            target_neg_embeddings = current_embedding[col_neg]
+            neg_diff = source_neg_embeddings - target_neg_embeddings
+            neg_p_norm_distances = torch.norm(neg_diff, p=2, dim=1)
+            
+            lowdim_dist = torch.cat((pos_p_norm_distances, neg_p_norm_distances), dim=0)
+            q = 1 / (1 + .9 * torch.pow(lowdim_dist, (2*.5)))
         return current_embedding, q
 
     def loss_function(self, p, q, reg, n_items):
-
+        
         def CE(highd, lowd, reg, n_items):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
             eps = 1e-9 # To prevent log(0)
-            return - (reg * 10 * torch.sum(highd * torch.log(lowd + eps)) + \
-                torch.sum((1 - highd) * torch.log(1 - lowd + eps))) / n_items
+            return - (10 * torch.sum(highd * torch.log(lowd + eps)) + \
+                torch.sum((1 - highd) * torch.log(1 - lowd + eps))) / len(highd)
         
-        loss = CE(torch.triu(p, diagonal=1), torch.triu(q, diagonal=1), reg, n_items)
+        loss = CE(p, q, reg, n_items)
         return loss
-
-    def sampling_loss_function(self, p, q, reg, n_items, edge_index): # works with sums, basically the same
-        def positive(highd, lowd):
-            eps = 1e-9  # To prevent log(0)
-            return -torch.sum(highd * torch.log(lowd + eps))  # positive term, negative term
-        def negative(highd, lowd, row_neg, col_neg):
-            eps = 1e-9
-            return -torch.sum((1 - highd[row_neg, col_neg]) * torch.log(1 - lowd[row_neg, col_neg] + eps))
-        
-        # Calculate the loss only for positive edges
-        positive_loss = positive(p, q)
-
-        # Calculate the loss only for negative edges
-        row_neg, col_neg = negative_sampling(edge_index)
-        negative_loss = negative(p, q, row_neg, col_neg)
-
-        # Combine positive and negative losses
-        total_loss = (10 * positive_loss + negative_loss) / n_items
-        print(reg)
-
-        return total_loss
 
     def density_r(self, array, dist):
         r1 = torch.sum(torch.pow(torch.tensor(dist),2)) # sum(edge weight * dist^2) for each row
@@ -102,8 +111,10 @@ class GNUMAP2(nn.Module):
         r = torch.log(r1/r2+1e-8) # for stability
         return r
 
-    def fit(self, features, sparse, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0, dens_lambda=30000.0):
+    def fit(self, features, sparse, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0):
         loss_values = []
+        best = 1e9
+        cnt_wait = 0
         print("Starting fit.")
         if opt == "sgd":
             optimizer = optim.SGD(self.parameters(), lr=lr, momentum=0.9)
@@ -134,29 +145,38 @@ class GNUMAP2(nn.Module):
         """
 
         # Calculate loss regularizer
-        n_items = p.numel()
-        neg_edge_count = torch.sum(torch.eq(p, 0))
-        pos_edge_count = n_items - neg_edge_count
+        n_items = p.shape[0] ** 2
+        pos_edge_count = edge_index.shape[1]
+        neg_edge_count = p.shape[0]**2 - pos_edge_count
         reg = neg_edge_count / pos_edge_count
 
         self.train()
         for epoch in range(self.epochs):
             optimizer.zero_grad()
-            current_embedding, q = self(features, edge_index)
+            row_neg, col_neg = negative_sampling(edge_index)
+            current_embedding, q = self(features, edge_index, row_neg, col_neg)
             q.requires_grad_(True)
             # rq = self.density_r(q, torch.cdist(current_embedding, current_embedding))
 
             # cov_matrix = torch.cov(torch.stack((rp,rq)))
             # corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
             #loss = self.loss_function(p, q, reg, n_items) - corr # good for sphere with default ab_params
-            #loss = self.loss_function(p, q, reg, n_items)
-            loss = self.sampling_loss_function(p, q, reg, n_items,edge_index)
+            p_sampled = torch.cat((p[edge_index[0],edge_index[1]], p[row_neg, col_neg]), dim=0)
+            loss = self.loss_function(p_sampled, q, reg, n_items)
             loss.backward()
             optimizer.step()
-
             loss_np = loss.item()
             loss_values.append([loss_np, loss.item(), -1]) #corr.item()
             print("Epoch ", epoch, " |  Loss ", loss_np) # Corr ",corr
+
+            # if round(loss_np, 2) < best:
+            #     best = loss
+            #     cnt_wait = 0
+            # else: 
+            #     cnt_wait += 1
+            # if cnt_wait == 50 and epoch > 50:
+            #     print('Early stopping at epoch {}!'.format(epoch))
+            #     break
         return loss_values #rp.detach().numpy()
 
     def predict(self, features, edge_index):
