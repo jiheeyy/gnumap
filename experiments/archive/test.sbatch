@@ -30,8 +30,8 @@ cd /home/jiheeyou/Desktop/gnumap/experiments
 
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-    python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
+    python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --n_neighbours $4 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
 else
     if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-    python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
+    python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --n_neighbours $4 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
 fi
