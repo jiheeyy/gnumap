@@ -111,7 +111,7 @@ class GNUMAP2(nn.Module):
         r = torch.log(r1/r2+1e-8) # for stability
         return r
 
-    def fit(self, features, sparse, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0):
+    def fit(self, features, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0):
         loss_values = []
         best = 1e9
         cnt_wait = 0
