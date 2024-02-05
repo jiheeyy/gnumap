@@ -210,6 +210,7 @@ for model_name in args.jm:
             else:
                 pass
         except:
+            res = None
             pass
         
         logging.info(name_file+str(params))

@@ -103,7 +103,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         X_manifold = X_ambient
     
     elif name == 'Products':
-        dataset = PygNodePropPredDataset(name = 'ogbn-products') 
+        dataset = PygNodePropPredDataset(name = 'ogbn-products', transform=NormalizeFeatures()) 
         G = dataset[0]
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
