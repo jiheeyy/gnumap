@@ -30,7 +30,9 @@ import torch
 from sklearn.neighbors import kneighbors_graph, radius_neighbors_graph
 from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
 from sklearn.preprocessing import StandardScaler
-
+import joblib
+from io import BytesIO
+import requests
 
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
                    standardize=True, centers = 4, cluster_std = [0.1,0.1,1.0,1.0],
@@ -123,14 +125,12 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         spatial_lda_models = {}  
 
         PATH_TO_3MODEL = "spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
-        PATH_TO_SPLEEN_DF_PKL = "spleen/spleen_df.pkl"
+        PATH_TO_SPLEEN_DF_PKL = "https://github.com/calico/spatial_lda/raw/primary/data/spleen/spleen_df.pkl"
         PATH_TO_SPLEEN_FEATURES_PKL = "spleen/spleen_cells_features.pkl" 
         
         spatial_lda_models[3] = pickle.load(open(PATH_TO_3MODEL, "rb"))
-        print("ONE")
 
-        codex_df_dict = pickle.load(open(PATH_TO_SPLEEN_DF_PKL, "rb"))
-        print("SUCCESS")
+        codex_df_dict = joblib.load(BytesIO(requests.get(PATH_TO_SPLEEN_DF_PKL).content))
 
         for df in codex_df_dict.values():
             df['x'] = df['sample.X']
