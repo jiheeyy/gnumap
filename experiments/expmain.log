@@ -1,4 +1,0 @@
-2024-02-05 14:04:23,650 - INFO - Requested http://ipinfo.io/json
-2024-02-05 14:04:24,585 - INFO - STARTING EXPERIMENT
-2024-02-05 14:05:32,459 - INFO - result_file{'alpha': 0.5, 'beta': 1, 'gnn_type': 'symmetric'}
-2024-02-05 14:05:32,464 - INFO - ENDING EXPERIMENT
