@@ -1,6 +1,4 @@
 import sys, os
-import logging
-logging.basicConfig(filename='expmain.log', level=logging.INFO, filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
 import torch
 import torch_geometric
 from torch_geometric.data import Data
@@ -81,7 +79,6 @@ new_dir_path = os.path.join(os.getcwd(), 'results/',args.filename)
 if not os.path.exists(new_dir_path):
     os.makedirs(new_dir_path)
 results = {}
-logging.info('STARTING EXPERIMENT')
 
 X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=1000,features=args.features,featdim = 20,
                                                           n_neighbours=args.n_neighbours,standardize=True,
@@ -227,11 +224,8 @@ for model_name in args.jm:
             res = None
             pass
         
-        logging.info(name_file+str(params))
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}
 
 if args.jcsv:
     file_path = new_dir_path + '/' + args.name_dataset + '_' + str(args.seed) + '.csv'
     pd.DataFrame.from_dict(results, orient='index').to_csv(file_path)
-
-logging.info('ENDING EXPERIMENT')

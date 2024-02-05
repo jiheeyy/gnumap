@@ -122,13 +122,16 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
     elif name == 'Mouse1' or 'Mouse2' or 'Mouse3':
         spatial_lda_models = {}  
 
-        PATH_TO_3MODEL = "/Users/jiheeyou/Desktop/spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
-        PATH_TO_SPLEEN_DF_PKL = "/Users/jiheeyou/Desktop/spleen/spleen_df.pkl"
-        PATH_TO_SPLEEN_FEATURES_PKL = "/Users/jiheeyou/Desktop/spleen/spleen_cells_features.pkl" 
+        PATH_TO_3MODEL = "spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
+        PATH_TO_SPLEEN_DF_PKL = "spleen/spleen_df.pkl"
+        PATH_TO_SPLEEN_FEATURES_PKL = "spleen/spleen_cells_features.pkl" 
         
         spatial_lda_models[3] = pickle.load(open(PATH_TO_3MODEL, "rb"))
+        print("ONE")
 
         codex_df_dict = pickle.load(open(PATH_TO_SPLEEN_DF_PKL, "rb"))
+        print("SUCCESS")
+
         for df in codex_df_dict.values():
             df['x'] = df['sample.X']
             df['y'] = df['sample.Y']
