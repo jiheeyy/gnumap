@@ -19,6 +19,7 @@ from experiments.SBM.read_SBM import *
 from experiments.simulation_utils import *
 import networkx as nx
 import matplotlib.pyplot as plt
+from ogb.nodeproppred import PygNodePropPredDataset
 
 
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
@@ -97,6 +98,13 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
     elif name == 'Citeseer':
         dataset = Planetoid(root='Planetoid', name='Citeseer', transform=NormalizeFeatures())
         G = dataset[0]  # Get the first graph object.
+        G.edge_weight = torch.ones(G.edge_index.shape[1])
+        X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
+        X_manifold = X_ambient
+    
+    elif name == 'Products':
+        dataset = PygNodePropPredDataset(name = 'ogbn-products') 
+        G = dataset[0]
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient

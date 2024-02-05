@@ -90,19 +90,19 @@ class GNUMAP2(nn.Module):
             neg_p_norm_distances = torch.norm(neg_diff, p=2, dim=1)
             
             lowdim_dist = torch.cat((pos_p_norm_distances, neg_p_norm_distances), dim=0)
-            q = 1 / (1 + .9 * torch.pow(lowdim_dist, (2*.5)))
+            q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
         return current_embedding, q
 
-    def loss_function(self, p, q, reg, n_items):
+    def loss_function(self, p, q):
         
-        def CE(highd, lowd, reg, n_items):
+        def CE(highd, lowd):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
             eps = 1e-9 # To prevent log(0)
-            return - (10 * torch.sum(highd * torch.log(lowd + eps)) + \
+            return - (30 * torch.sum(highd * torch.log(lowd + eps)) + \
                 torch.sum((1 - highd) * torch.log(1 - lowd + eps))) / len(highd)
         
-        loss = CE(p, q, reg, n_items)
+        loss = CE(p, q)
         return loss
 
     def density_r(self, array, dist):
@@ -145,10 +145,10 @@ class GNUMAP2(nn.Module):
         """
 
         # Calculate loss regularizer
-        n_items = p.shape[0] ** 2
-        pos_edge_count = edge_index.shape[1]
-        neg_edge_count = p.shape[0]**2 - pos_edge_count
-        reg = neg_edge_count / pos_edge_count
+        # n_items = p.shape[0] ** 2
+        # pos_edge_count = edge_index.shape[1]
+        # neg_edge_count = p.shape[0]**2 - pos_edge_count
+        # reg = neg_edge_count / pos_edge_count
 
         self.train()
         for epoch in range(self.epochs):
@@ -160,9 +160,8 @@ class GNUMAP2(nn.Module):
 
             # cov_matrix = torch.cov(torch.stack((rp,rq)))
             # corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
-            #loss = self.loss_function(p, q, reg, n_items) - corr # good for sphere with default ab_params
             p_sampled = torch.cat((p[edge_index[0],edge_index[1]], p[row_neg, col_neg]), dim=0)
-            loss = self.loss_function(p_sampled, q, reg, n_items)
+            loss = self.loss_function(p_sampled, q)
             loss.backward()
             optimizer.step()
             loss_np = loss.item()
