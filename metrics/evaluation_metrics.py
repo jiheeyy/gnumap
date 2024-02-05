@@ -715,7 +715,8 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     X_manifold = MinMaxScaler().fit_transform(X_manifold)
     X_ambient = MinMaxScaler().fit_transform(X_ambient)
     embeds = MinMaxScaler().fit_transform(embeds)
-    if embeds.shape[1] == 3 or dataset in ["Blobs", "Cora", "Pubmed", "Citeseer",'Products']:
+    if embeds.shape[1] == 3 or dataset in ["Blobs", "Cora", "Pubmed", "Citeseer",'Products',
+    "Mouse1","Mouse2","Mouse3"]:
         sp_manifold = np.nan
         fr_dist =  np.nan
         curve_dist = np.nan

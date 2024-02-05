@@ -93,8 +93,22 @@ X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_s
 
 def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
     if save_img:
-        plt.figure()
-        plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
+        if title[:5] == 'Mouse':
+            plt.figure(figsize=(4, 4))
+            color_palette = ["#877688", "#73377f", "#1c9a70", "#35609f"]
+            gray_color = "#877688"
+
+            cluster_to_color = {cluster: color_palette[i] for i, cluster in enumerate(sorted(cluster_labels.unique()))}
+            mapped_colors = cluster_labels.map(cluster_to_color).values
+            is_gray = mapped_colors == gray_color
+
+            plt.scatter(X_ambient[is_gray, 0], X_ambient[is_gray, 1], s=1, c=gray_color, alpha=0.2)
+            plt.scatter(X_ambient[~is_gray, 0], X_ambient[~is_gray, 1], s=3, c=mapped_colors[~is_gray])
+            plt.gca().get_yaxis().set_visible(False)
+            plt.gca().get_xaxis().set_visible(False)
+        else:
+            plt.figure()
+            plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
         plt.title(title)
         plt.savefig(save_path, format='png', dpi=300)
         plt.close()

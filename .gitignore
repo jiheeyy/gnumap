@@ -19,3 +19,4 @@ experiments/logs/*
 experiments/results/*
 experiments/model_weights/*
 notebooks/*
+experiments/dataset/*

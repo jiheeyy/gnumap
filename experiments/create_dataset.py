@@ -14,12 +14,22 @@ from torch_geometric.transforms import NormalizeFeatures
 
 sys.path.append('../')
 from data_utils import *
-from graph_utils import convert_to_graph
+from graph_utils import convert_to_graph, mouse_convert_to_graph
 from experiments.SBM.read_SBM import *
 from experiments.simulation_utils import *
 import networkx as nx
 import matplotlib.pyplot as plt
 from ogb.nodeproppred import PygNodePropPredDataset
+
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import os
+import torch
+from sklearn.neighbors import kneighbors_graph, radius_neighbors_graph
+from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
+from sklearn.preprocessing import StandardScaler
 
 
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
@@ -108,6 +118,36 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
+    
+    elif name == 'Mouse1' or 'Mouse2' or 'Mouse3':
+        spatial_lda_models = {}  
+
+        PATH_TO_3MODEL = "/Users/jiheeyou/Desktop/spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
+        PATH_TO_SPLEEN_DF_PKL = "/Users/jiheeyou/Desktop/spleen/spleen_df.pkl"
+        PATH_TO_SPLEEN_FEATURES_PKL = "/Users/jiheeyou/Desktop/spleen/spleen_cells_features.pkl" 
+        
+        spatial_lda_models[3] = pickle.load(open(PATH_TO_3MODEL, "rb"))
+
+        codex_df_dict = pickle.load(open(PATH_TO_SPLEEN_DF_PKL, "rb"))
+        for df in codex_df_dict.values():
+            df['x'] = df['sample.X']
+            df['y'] = df['sample.Y']
+        wt_samples = [ x for x in codex_df_dict.keys() if x.startswith("BALBc")]
+        spleen_dfs = dict(zip(wt_samples, [ codex_df_dict[x] for x in wt_samples]))
+  
+        with open(PATH_TO_SPLEEN_FEATURES_PKL, 'rb') as f:
+            spleen_cells_features = pickle.load(f)
+
+        graph_list, cluster_labels, coord_list = mouse_convert_to_graph(spleen_dfs,'sample.X', 'sample.Y', 
+        spatial_lda_models[3].topic_weights,
+        z_col=None, n_neighbours = 0, features='markers', processing ='znorm', 
+        radius_knn = 100, bw = None)
+
+        num = name[-1]
+        G = graph_list[f'BALBc-{num}']
+        X_ambient = coord_list[f'BALBc-{num}']
+        X_manifold = X_ambient
+        cluster_labels = cluster_labels[f'BALBc-{num}']
 
     else:
         raise ValueError("Data unknown!!")
