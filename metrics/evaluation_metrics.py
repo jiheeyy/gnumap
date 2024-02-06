@@ -712,6 +712,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
     ### Global metrics
     _,_,sp,_ = spearman_correlation_eval(G, embeds)
+    print('sp done')
     X_manifold = MinMaxScaler().fit_transform(X_manifold)
     X_ambient = MinMaxScaler().fit_transform(X_ambient)
     embeds = MinMaxScaler().fit_transform(embeds)
@@ -724,8 +725,11 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     elif dataset in ["Trefoil", "Helix", "Swissroll", "Sphere", "Helix",
                    "Swissroll", "Moons", "Circles"]:
         _,_, sp_manifold, _ = spearman_correlation_numpy(X_manifold, embeds)
+        print('sp_manifold done')
         fr_dist = fretchet_inception_distance(X_manifold, embeds)
+        print('fr_dist done')
         curve_dist = np.square(X_manifold -  embeds).mean()
+        print('curve_dist done')
     global_dist = {'frechet': fr_dist,
                     'distance_between_curves': curve_dist,
                     'acc': svm_eval(embeds, np.array(cluster_labels)),
@@ -745,7 +749,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
                     'davies_bouldin_score_manifold': davies_bouldin_score(X_manifold, np.array(cluster_labels)),
                     'spearman_graph': sp,
                     'spearman_manifold': sp_manifold}
-
+    print('global done')
     local = {}
     for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
         local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval(G, embeds, 
@@ -776,7 +780,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     local['q75_density_X'] = np.quantile(average_distance_manifold, 0.75)
     local['q75_density_embeds'] = np.quantile(average_distance_embeds, 0.75)
     local['corr_density'] = np.corrcoef(average_distance_manifold, average_distance_embeds)[0,1]
-
+    print('local done')
     return global_dist, local
 
 # 'spearman_graph': sp, is sowon's sp
