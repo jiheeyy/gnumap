@@ -35,7 +35,7 @@ from models.gnumap2 import *
 from experiments.create_dataset import *
 
 
-def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
+def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                 epochs=np.nan, n_layers=np.nan, out_dim=np.nan, hid_dim=np.nan, 
                 lr=np.nan, n_neighbors=np.nan, dataset=np.nan,
                 alpha=np.nan, beta=np.nan, gnn_type=np.nan, tau=np.nan, lambd=np.nan, edr=np.nan, fmr=np.nan,
@@ -134,8 +134,11 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         pass
     
     end_time = time.time()
-    if dataset in ['Products','Mouse1','Mouse2','Mouse3']:
-            results={}
+    if large_class:
+            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
+                                                     dataset=dataset)
+            print("done with the embedding evaluation")
+            results = {**global_metrics, **local_metrics}
             results['model_name'] = model_name
             results['out_dim'] = out_dim
             results['hid_dim'] = hid_dim
@@ -159,7 +162,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
             results = None
         else:
             print('second path')
-            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
                                                      dataset=dataset)
             print("done with the embedding evaluation")
             results=[]
@@ -183,7 +186,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         embeds = None
         results = None
     else:
-        global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+        global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
                                                  dataset=dataset)
         print("done with the embedding evaluation")
         results=[]

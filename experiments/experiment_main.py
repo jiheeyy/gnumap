@@ -67,6 +67,8 @@ parser.add_argument('--jcsv', type=float, default=True)  # make csv?
 parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
                     help='List of models to run')
+parser.add_argument('--large_class', type=int, default=0)
+parser.add_argument('--variance', type=int, default=0)
 parser.add_argument('--result_file', type=str, default='result_file')
 args = parser.parse_args()
 
@@ -74,6 +76,14 @@ seed = args.seed
 np.random.seed(seed)
 torch.manual_seed(seed)
 save_img = bool(args.save_img)
+large_class = bool(args.large_class)
+variance = bool(args.variance)
+if large_class:
+     models_to_test = ['CCA-SSG','GNUMAP2','SPAGCN','UMAP']
+elif variance:
+     models_to_test = ['CCA-SSG','DGI','BGRL']
+else:
+     models_to_test = args.jm
 name_file = args.result_file
 new_dir_path = os.path.join(os.getcwd(), 'results/',args.filename)
 if not os.path.exists(new_dir_path):
@@ -185,7 +195,11 @@ tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
 fmr_array = [0] #[0, 0.1,0.2,0.6]
 edr_array = [0.5] #[0,0.1]
-# got pretty GNUMAP2 with fmr edr 0.1 0
+
+if variance:
+     alpha_array = np.arange(0,1,0.5)
+     beta_array = np.arange(0,1,0.5)
+
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
     'GNUMAP':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
@@ -207,7 +221,7 @@ args_params = {
 }
 
 
-for model_name in args.jm:
+for model_name in models_to_test:
     if model_name not in ['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
                             raise ValueError('Invalid model name')
@@ -223,7 +237,7 @@ for model_name in args.jm:
         params = dict(zip(model_hyperparameters.keys(), combination))
 
         # try:
-        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, 
+        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, large_class,
                     out_dim=out_dim, name_file=name_file, 
                     random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
                     **args_params,
