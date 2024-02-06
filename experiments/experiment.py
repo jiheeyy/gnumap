@@ -136,9 +136,11 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
     end_time = time.time()
     if model_name == 'GNUMAP2':
         if np.isnan(loss_values[-1][:2]).any():
+            print('first path')
             embeds = None
             results = None
         else:
+            print('second path')
             global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
                                                      dataset=dataset)
             print("done with the embedding evaluation")

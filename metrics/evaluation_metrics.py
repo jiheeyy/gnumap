@@ -712,6 +712,7 @@ def fretchet_inception_distance(X_manifold, embeds, eps=1e-6):
 def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
     ### Global metrics
+    print(dataset)
     starting_eval = time.time()
     if dataset in ["Products","Mouse1","Mouse2","Mouse3"]:
         sp = np.nan
@@ -795,8 +796,8 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
 def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
     if X_manifold.shape[0] > 2000:
-        return sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
-             dataset = "Blobs")
+        print('go to sampling')
+        return sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,dataset)
     else:
         starting_eval = time.time()
         ### Global metrics

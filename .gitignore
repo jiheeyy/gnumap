@@ -5,8 +5,10 @@
 *.ipynb
 *.pyc
 # *.csv
-# *.pkl
+*.pkl
 *.pyc
+*.err
+*.out
 .DS_Store
 
 
