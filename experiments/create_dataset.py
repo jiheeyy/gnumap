@@ -125,12 +125,19 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         spatial_lda_models = {}  
 
         PATH_TO_3MODEL = "spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
-        PATH_TO_SPLEEN_DF_PKL = "https://github.com/calico/spatial_lda/raw/primary/data/spleen/spleen_df.pkl"
+        URL_SPLEEN_DF_PKL = "https://github.com/calico/spatial_lda/raw/primary/data/spleen/spleen_df.pkl"
+        PATH_TO_SPLEEN_DF_PKL = "spleen/spleen_dfs.pkl" 
         PATH_TO_SPLEEN_FEATURES_PKL = "spleen/spleen_cells_features.pkl" 
+
         
         spatial_lda_models[3] = pickle.load(open(PATH_TO_3MODEL, "rb"))
 
-        codex_df_dict = joblib.load(BytesIO(requests.get(PATH_TO_SPLEEN_DF_PKL).content))
+        try:
+            codex_df_dict = pickle.load(open(PATH_TO_SPLEEN_DF_PKL, "rb"))
+        except:
+            codex_df_dict = joblib.load(BytesIO(requests.get(URL_SPLEEN_DF_PKL).content))
+            with open(PATH_TO_SPLEEN_DF_PKL, "wb") as file:
+                pickle.dump(codex_df_dict, file)
 
         for df in codex_df_dict.values():
             df['x'] = df['sample.X']
