@@ -33,6 +33,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 from io import BytesIO
 import requests
+import scanpy as sp
 
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
                    standardize=True, centers = 4, cluster_std = [0.1,0.1,1.0,1.0],
@@ -120,6 +121,19 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
+
+    elif name == 'Cancer':
+        adata = sc.read("cancer/sample_data.h5ad")
+        adj=np.loadtxt('cancer/adj.csv', delimiter=',')
+        adata.var_names_make_unique()
+        spg.prefilter_genes(adata,min_cells=3) # avoiding all genes are zeros
+        spg.prefilter_specialgenes(adata)
+        #Normalize and take log for UMI
+        sc.pp.normalize_per_cell(adata)
+        sc.pp.log1p(adata)
+
+        G.x = adata.X.toarray()
+        G.edge_weight = torch.exp((edge_weights - max(edge_weights))/max(edge_weights))
     
     elif name == 'Mouse1' or 'Mouse2' or 'Mouse3':
         spatial_lda_models = {}  

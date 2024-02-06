@@ -719,7 +719,11 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
 
     np.random.seed(1)
     sample_indices = np.random.choice(X_manifold.shape[0], 2000, replace=False)
-    X_manifold, X_ambient, embeds, cluster_labels = X_manifold[sample_indices], X_ambient[sample_indices], embeds[sample_indices], cluster_labels[sample_indices]
+    X_manifold, X_ambient, embeds = X_manifold[sample_indices], X_ambient[sample_indices], embeds[sample_indices]
+    try:
+        cluster_labels = cluster_labels[sample_indices]
+    except:
+        cluster_labels = cluster_labels.values.reshape(-1, 1)[sample_indices]
     global_dist = {'acc': svm_eval(embeds, np.array(cluster_labels)),
                     'acc_X': svm_eval(X_ambient,np.array(cluster_labels)),
                     'acc_manifold': svm_eval(X_manifold,np.array(cluster_labels)),
@@ -751,7 +755,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_c
         X_ambient = MinMaxScaler().fit_transform(X_ambient)
         embeds = MinMaxScaler().fit_transform(embeds)
         if embeds.shape[1] == 3 or dataset in ["Blobs", "Cora", "Pubmed", "Citeseer",'Products',
-        "Mouse1","Mouse2","Mouse3"]:
+        "Mouse1","Mouse2","Mouse3","Cancer"]:
             sp_manifold = np.nan
             fr_dist =  np.nan
             curve_dist = np.nan
