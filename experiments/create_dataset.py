@@ -142,9 +142,9 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
             spleen_cells_features = pickle.load(f)
 
         graph_list, cluster_labels, coord_list = mouse_convert_to_graph(spleen_dfs,'sample.X', 'sample.Y', 
-        spatial_lda_models[3].topic_weights,
-        z_col=None, n_neighbours = 0, features='markers', processing ='znorm', 
-        radius_knn = 100, bw = None)
+        spatial_lda_models[3].topic_weights,)
+        # z_col=None, n_neighbours = 0, features='markers', processing ='znorm', 
+        # radius_knn = 100, bw = None)
 
         num = name[-1]
         G = graph_list[f'BALBc-{num}']

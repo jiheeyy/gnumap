@@ -18,6 +18,7 @@ import torch_geometric
 from functools import wraps
 from typing import Optional, Tuple
 from torch_geometric.utils.num_nodes import maybe_num_nodes
+from scipy.sparse.csgraph import dijkstra
 
 from sklearn.svm import SVC, LinearSVC
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut, KFold
@@ -712,7 +713,10 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
     ### Global metrics
     starting_eval = time.time()
-    _,_,sp,_ = spearman_correlation_eval(G, embeds)
+    if dataset in ["Products","Mouse1","Mouse2","Mouse3"]:
+        sp = None
+    else:
+        _,_,sp,_ = spearman_correlation_eval(G, embeds)
     print('evaluation sp done')
     X_manifold = MinMaxScaler().fit_transform(X_manifold)
     X_ambient = MinMaxScaler().fit_transform(X_ambient)
@@ -731,7 +735,7 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     
     local = {}
     for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
-        local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval(G, embeds, 
+        local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval_large(X_manifold, embeds, 
                                                                                 n_neighbors = n_neighbors).detach().numpy())
         print('evaluation neighbor done', n_neighbors)
     nonsample_eval = time.time()

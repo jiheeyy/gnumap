@@ -226,7 +226,7 @@ def mouse_convert_to_graph(sample_dfs, x_col, y_col, topic_weights, z_col=None,
             bw = torch.max(edge_weights)
         if features == 'markers':
             feats =  subset_rows.loc[:, marker_list].values
-            #feats = scaler.fit_transform(feats)
+            feats = scaler.fit_transform(feats)
         elif features == 'ones':
             feats = torch.ones(n, n)
         else:
