@@ -714,7 +714,7 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     ### Global metrics
     starting_eval = time.time()
     if dataset in ["Products","Mouse1","Mouse2","Mouse3"]:
-        sp = None
+        sp = np.nan
     else:
         _,_,sp,_ = spearman_correlation_eval(G, embeds)
     print('evaluation sp done')
