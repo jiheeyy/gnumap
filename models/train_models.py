@@ -467,7 +467,10 @@ def train_bgrl(data, hid_dim, out_dim, lambd=1e-5,
     in_dim = data.num_features
     n_layers = n_layers
 
-    num_class = int(data.y.max().item()) + 1
+    try:
+        num_class = int(data.y.max().item()) + 1
+    except:
+        num_class = 4 # mouse
     N = data.num_nodes
 
     ##### Train the BGRL model #####
