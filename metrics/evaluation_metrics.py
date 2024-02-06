@@ -42,7 +42,7 @@ from scipy.sparse.csgraph import dijkstra
 from torch_geometric.utils import to_scipy_sparse_matrix
 from scipy.sparse import csr_matrix
 from scipy import linalg
-
+import time
 
 from gnumap.umap_functions import prob_high_dim, find_ab_params
 
@@ -708,11 +708,12 @@ def fretchet_inception_distance(X_manifold, embeds, eps=1e-6):
     return (diff.dot(diff) + np.trace(sigma1)
             + np.trace(sigma2) - 2 * tr_covmean)
 
-def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
     ### Global metrics
+    starting_eval = time.time()
     _,_,sp,_ = spearman_correlation_eval(G, embeds)
-    print('sp done')
+    print('evaluation sp done')
     X_manifold = MinMaxScaler().fit_transform(X_manifold)
     X_ambient = MinMaxScaler().fit_transform(X_ambient)
     embeds = MinMaxScaler().fit_transform(embeds)
@@ -725,11 +726,19 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     elif dataset in ["Trefoil", "Helix", "Swissroll", "Sphere", "Helix",
                    "Swissroll", "Moons", "Circles"]:
         _,_, sp_manifold, _ = spearman_correlation_numpy(X_manifold, embeds)
-        print('sp_manifold done')
         fr_dist = fretchet_inception_distance(X_manifold, embeds)
-        print('fr_dist done')
         curve_dist = np.square(X_manifold -  embeds).mean()
-        print('curve_dist done')
+    
+    local = {}
+    for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
+        local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval(G, embeds, 
+                                                                                n_neighbors = n_neighbors).detach().numpy())
+        print('evaluation neighbor done', n_neighbors)
+    nonsample_eval = time.time()
+    print('Time for non-sampling part',nonsample_eval - starting_eval)
+    np.random.seed(1)
+    sample_indices = np.random.choice(X_manifold.shape[0], 2000, replace=False)
+    X_manifold, X_ambient, embeds, cluster_labels = X_manifold[sample_indices], X_ambient[sample_indices], embeds[sample_indices], cluster_labels[sample_indices]
     global_dist = {'frechet': fr_dist,
                     'distance_between_curves': curve_dist,
                     'acc': svm_eval(embeds, np.array(cluster_labels)),
@@ -749,11 +758,7 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
                     'davies_bouldin_score_manifold': davies_bouldin_score(X_manifold, np.array(cluster_labels)),
                     'spearman_graph': sp,
                     'spearman_manifold': sp_manifold}
-    print('global done')
-    local = {}
-    for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
-        local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval(G, embeds, 
-                                                                                n_neighbors = n_neighbors).detach().numpy())
+ 
     density = eval_density_preserve(X_manifold, embeds)
     ### try another density evaluation metric by cluster
     average_distance_manifold = [None] * len(np.unique(cluster_labels))
@@ -780,7 +785,83 @@ def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
     local['q75_density_X'] = np.quantile(average_distance_manifold, 0.75)
     local['q75_density_embeds'] = np.quantile(average_distance_embeds, 0.75)
     local['corr_density'] = np.corrcoef(average_distance_manifold, average_distance_embeds)[0,1]
-    print('local done')
+    print('Time for sampling part',time.time()-nonsample_eval)
     return global_dist, local
 
-# 'spearman_graph': sp, is sowon's sp
+def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+             dataset = "Blobs"):
+    if X_manifold.shape[0] > 2000:
+        return sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+             dataset = "Blobs")
+    else:
+        starting_eval = time.time()
+        ### Global metrics
+        _,_,sp,_ = spearman_correlation_eval(G, embeds)
+
+        X_manifold = MinMaxScaler().fit_transform(X_manifold)
+        X_ambient = MinMaxScaler().fit_transform(X_ambient)
+        embeds = MinMaxScaler().fit_transform(embeds)
+        if embeds.shape[1] == 3 or dataset in ["Blobs", "Cora", "Pubmed", "Citeseer",'Products',
+        "Mouse1","Mouse2","Mouse3"]:
+            sp_manifold = np.nan
+            fr_dist =  np.nan
+            curve_dist = np.nan
+
+        elif dataset in ["Trefoil", "Helix", "Swissroll", "Sphere", "Helix",
+                    "Swissroll", "Moons", "Circles"]:
+            _,_, sp_manifold, _ = spearman_correlation_numpy(X_manifold, embeds)
+            fr_dist = fretchet_inception_distance(X_manifold, embeds)
+            curve_dist = np.square(X_manifold -  embeds).mean()
+
+        global_dist = {'frechet': fr_dist,
+                        'distance_between_curves': curve_dist,
+                        'acc': svm_eval(embeds, np.array(cluster_labels)),
+                        'acc_X': svm_eval(X_ambient,np.array(cluster_labels)),
+                        'acc_manifold': svm_eval(X_manifold,np.array(cluster_labels)),
+                        'acc_linear': logistic_eval(embeds, np.array(cluster_labels), n_splits=10, penalty=None),
+                        'acc_linear_X': logistic_eval(X_ambient, np.array(cluster_labels), n_splits=10, penalty=None),
+                        'acc_linear_manifold': logistic_eval(X_manifold, np.array(cluster_labels), n_splits=10, penalty=None),
+                        'silhouette_embeds': silhouette_score(embeds, np.array(cluster_labels)),
+                        'silhouette_X': silhouette_score(X_ambient, np.array(cluster_labels)),
+                        'silhouette_manifold': silhouette_score(X_manifold, np.array(cluster_labels)),
+                        'calinski_harabasz_score_embeds': calinski_harabasz_score(embeds, np.array(cluster_labels)),
+                        'calinski_harabasz_score_X':calinski_harabasz_score(X_ambient, np.array(cluster_labels)), 
+                        'calinski_harabasz_score_manifold':calinski_harabasz_score(X_manifold, np.array(cluster_labels)), 
+                        'davies_bouldin_score_embeds': davies_bouldin_score(embeds, np.array(cluster_labels)),
+                        'davies_bouldin_score_X': davies_bouldin_score(X_ambient, np.array(cluster_labels)),
+                        'davies_bouldin_score_manifold': davies_bouldin_score(X_manifold, np.array(cluster_labels)),
+                        'spearman_graph': sp,
+                        'spearman_manifold': sp_manifold}
+
+        local = {}
+        for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
+            local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval(G, embeds, 
+                                                                                    n_neighbors = n_neighbors).detach().numpy())
+        density = eval_density_preserve(X_manifold, embeds)
+        ### try another density evaluation metric by cluster
+        average_distance_manifold = [None] * len(np.unique(cluster_labels))
+        average_distance_embeds = [None] * len(np.unique(cluster_labels))
+        for u, c in enumerate(np.unique(cluster_labels)):
+            distances = pdist(X_manifold[np.where(cluster_labels == c)[0], :])
+            average_distance_manifold[u] = np.mean(distances)
+            distances_embeds = pdist(embeds[np.where(cluster_labels == c)[0], :])
+            average_distance_embeds[u] = np.mean(distances_embeds)
+            
+        average_distance_manifold = np.array(average_distance_manifold)[~np.isnan(average_distance_manifold)]
+        average_distance_embeds = np.array(average_distance_embeds)[~np.isnan(average_distance_embeds)]
+        
+        local['average_density_X'] = np.mean(average_distance_manifold[~np.isnan(average_distance_manifold)])
+        local['average_density_embeds'] = np.mean(average_distance_embeds)
+        local['min_density_X'] = np.min(average_distance_manifold)
+        local['min_density_embeds'] = np.min(average_distance_embeds)
+        local['max_density_X'] = np.max(average_distance_manifold)
+        local['max_density_embeds'] = np.max(average_distance_embeds)
+        local['median_density_X'] = np.median(average_distance_manifold)
+        local['median_density_embeds'] = np.median(average_distance_embeds)
+        local['q25_density_X'] = np.quantile(average_distance_manifold, 0.25)
+        local['q25_density_embeds'] = np.quantile(average_distance_embeds, 0.25)
+        local['q75_density_X'] = np.quantile(average_distance_manifold, 0.75)
+        local['q75_density_embeds'] = np.quantile(average_distance_embeds, 0.75)
+        local['corr_density'] = np.corrcoef(average_distance_manifold, average_distance_embeds)[0,1]
+        print('Time to original eval_all', time.time()-starting_eval)
+        return global_dist, local
