@@ -134,7 +134,25 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,
         pass
     
     end_time = time.time()
-    if model_name == 'GNUMAP2':
+    if dataset in ['Products','Mouse1','Mouse2','Mouse3']:
+            results={}
+            results['model_name'] = model_name
+            results['out_dim'] = out_dim
+            results['hid_dim'] = hid_dim
+            results['n_neighbors'] = n_neighbors
+            results['min_dist'] = min_dist
+            results['lr'] = lr
+            results['edr'] = edr
+            results['fmr'] = fmr
+            results['tau'] = tau
+            results['lambd'] = lambd
+            results['pred_hid'] = pred_hid
+            results['alpha_gnn'] = alpha
+            results['beta_gnn'] = beta
+            results['gnn_type'] = gnn_type
+            results['time'] = end_time - start_time
+            print("done with the embedding evaluation")
+    elif model_name == 'GNUMAP2':
         if np.isnan(loss_values[-1][:2]).any():
             print('first path')
             embeds = None

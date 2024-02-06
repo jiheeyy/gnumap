@@ -130,17 +130,32 @@ def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
 
 def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-
+    print('vizgen')
     if X is not None:
+        print('notnone')
         if model_name == 'GRACE' or X.shape[1] == 3:
             # 3D scatter plot
             ax1 = fig.add_subplot(121, projection='3d')
             ax1.scatter(X[:, 0], X[:, 1], X[:, 2], c=cluster_labels, cmap=plt.cm.Spectral)
         elif X.shape[1] == 2:
-            # 2D scatter plot
-            ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
+            print(args.name_dataset)
+            if args.name_dataset[:5] == 'Mouse':
+                print('correct viz')
+                color_palette = ["#877688", "#73377f", "#1c9a70", "#35609f"]
+                gray_color = "#877688"
+
+                cluster_to_color = {cluster: color_palette[i] for i, cluster in enumerate(sorted(cluster_labels.unique()))}
+                mapped_colors = cluster_labels.map(cluster_to_color).values
+                is_gray = mapped_colors == gray_color
+                print('before scatter')
+                ax1.scatter(X[is_gray, 0], X[is_gray, 1], s=1, c=gray_color, alpha=0.2)
+                ax1.scatter(X[~is_gray, 0], X[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
+                print('scattered')
+            else:
+                # 2D scatter plot
+                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
+        # Output dimension more than 3
         else:
-            # Output dimension more than 3
             fig.patch.set_facecolor('black')
             ax1.set_facecolor('black')
 
@@ -214,6 +229,7 @@ for model_name in args.jm:
                         **args_params,
                         **params)
             if save_img:
+                print('1')
                 visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
                 new_dir_path) 
                 # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),

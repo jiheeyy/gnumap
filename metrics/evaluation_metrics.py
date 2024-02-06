@@ -735,9 +735,9 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
         curve_dist = np.square(X_manifold -  embeds).mean()
     
     local = {}
+    print('before neighbors')
     for i, n_neighbors in enumerate([1, 3, 5, 10, 20, 30, 50]):
-        local['neighbor_'  + str(n_neighbors)] = float(neighbor_kept_ratio_eval_large(X_manifold, embeds, 
-                                                                                n_neighbors = n_neighbors).detach().numpy())
+        local['neighbor_'  + str(n_neighbors)] = np.nan
         print('evaluation neighbor done', n_neighbors)
     nonsample_eval = time.time()
     print('Time for non-sampling part',nonsample_eval - starting_eval)
@@ -795,7 +795,7 @@ def sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
 
 def eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
              dataset = "Blobs"):
-    if X_manifold.shape[0] > 2000:
+    if X_manifold.shape[0] > 1e9:
         print('go to sampling')
         return sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,dataset)
     else:
