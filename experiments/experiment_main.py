@@ -79,9 +79,9 @@ save_img = bool(args.save_img)
 large_class = bool(args.large_class)
 variance = bool(args.variance)
 if large_class:
-     models_to_test = ['CCA-SSG','GNUMAP2','SPAGCN','UMAP']
+     models_to_test = ['CCA-SSG']#['CCA-SSG','GNUMAP2','SPAGCN','UMAP']
 elif variance:
-     models_to_test = ['CCA-SSG','DGI','BGRL']
+     models_to_test = ['CCA-SSG']
 else:
      models_to_test = args.jm
 name_file = args.result_file
@@ -139,7 +139,7 @@ def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
 
 
 def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    fig, (ax1) = plt.subplots(1, 1, figsize=(4,4))
     print('vizgen')
     if X is not None:
         print('notnone')
@@ -164,25 +164,27 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
             else:
                 # 2D scatter plot
                 ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
+                ax1.grid(False)
+
         # Output dimension more than 3
         else:
             fig.patch.set_facecolor('black')
             ax1.set_facecolor('black')
 
-        ax1.set_title(title)
+        # ax1.set_title(title)
     else:
         # If X is None, set the background to black
         fig.patch.set_facecolor('black')
         ax1.set_facecolor('black')
 
     # Plotting loss values on the second subplot
-    if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
-        ax2.plot(loss_values, color='blue')
-        ax2.set_title('Loss Over Time')
-        ax2.set_xlabel('Epoch')
-        ax2.set_ylabel('Loss')
-    else:
-        pass
+    # if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
+    #     ax2.plot(loss_values, color='blue')
+    #     ax2.set_title('Loss Over Time')
+    #     ax2.set_xlabel('Epoch')
+    #     ax2.set_ylabel('Loss')
+    # else:
+    #     pass
     
     final_save_path = os.path.join(save_path, model_name+file_name+'.png')
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
@@ -190,10 +192,10 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
 
 alpha_array = [0.5] #np.arange(0,1,0.5)
 beta_array = [1] #np.arange(0,1,0.5)
-lambda_array = [1e-5] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
+lambda_array = [1e-3] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
 tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
-fmr_array = [0] #[0, 0.1,0.2,0.6]
+fmr_array = [0.3] #[0, 0.1,0.2,0.6]
 edr_array = [0.5] #[0,0.1]
 
 if variance:

@@ -93,16 +93,16 @@ class GNUMAP2(nn.Module):
             q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
         return current_embedding, q
 
-    def loss_function(self, p, q):
+    def loss_function(self, p, q,reg):
         
-        def CE(highd, lowd):
+        def CE(highd, lowd, reg):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
             eps = 1e-9 # To prevent log(0)
-            return - (30 * torch.sum(highd * torch.log(lowd + eps)) + \
+            return - (reg * torch.sum(highd * torch.log(lowd + eps)) + \
                 torch.sum((1 - highd) * torch.log(1 - lowd + eps))) / len(highd)
         
-        loss = CE(p, q)
+        loss = CE(p, q, reg)
         return loss
 
     def density_r(self, array, dist):
@@ -145,10 +145,10 @@ class GNUMAP2(nn.Module):
         """
 
         # Calculate loss regularizer
-        # n_items = p.shape[0] ** 2
-        # pos_edge_count = edge_index.shape[1]
-        # neg_edge_count = p.shape[0]**2 - pos_edge_count
-        # reg = neg_edge_count / pos_edge_count
+        n_items = p.shape[0] ** 2
+        pos_edge_count = edge_index.shape[1]
+        neg_edge_count = n_items - pos_edge_count
+        reg = neg_edge_count / pos_edge_count
 
         self.train()
         for epoch in range(self.epochs):
@@ -161,12 +161,13 @@ class GNUMAP2(nn.Module):
             # cov_matrix = torch.cov(torch.stack((rp,rq)))
             # corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
             p_sampled = torch.cat((p[edge_index[0],edge_index[1]], p[row_neg, col_neg]), dim=0)
-            loss = self.loss_function(p_sampled, q)
+            loss = self.loss_function(p_sampled, q, reg)
             loss.backward()
             optimizer.step()
             loss_np = loss.item()
             loss_values.append([loss_np, loss.item(), -1]) #corr.item()
             print("Epoch ", epoch, " |  Loss ", loss_np) # Corr ",corr
+            print(reg)
 
             # if round(loss_np, 2) < best:
             #     best = loss
