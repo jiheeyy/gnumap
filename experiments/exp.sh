@@ -1,15 +1,13 @@
 #!/bin/bash
 
 # Run the Python script with the specified dataset
-python experiment_main.py --name_dataset Circles
-python experiment_main.py --name_dataset Blobs
-python experiment_main.py --name_dataset Moons
-python experiment_main.py --name_dataset Sphere
-python experiment_main.py --name_dataset Swissroll
+python experiment_main.py --name_dataset Cora --filename 2d_sampling_Cora --out_dim 2
+python experiment_main.py --name_dataset Cora --filename 3d_sampling_Cora --out_dim 3
+python experiment_main.py --name_dataset Pubmed --filename 2d_sampling_Pubmed --out_dim 2
+python experiment_main.py --name_dataset Pubmed --filename 3d_sampling_Pubmed --out_dim 3
+python experiment_main.py --name_dataset Citeseer --filename 2d_sampling_Citeseer --out_dim 2
+python experiment_main.py --name_dataset Citeseer --filename 3d_sampling_Citeseer --out_dim 3
 
-
-# save_img yes
-# , 'UMAP', 'DenseMAP'
 # In terminal
 # chmod +x exp.sh
 # bash exp.sh

@@ -22,10 +22,12 @@ from models.bgrl import BGRL
 from models.data_augmentation import *
 from models.clgr import CLGR
 from models.vgnae import *
+from models.gnumap2 import GNUMAP2
 from models.spagcn import SPAGCN
 import matplotlib.pyplot as plt
 from scipy import optimize
 import scipy
+from scipy.sparse import coo_matrix
 
 dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 from codecarbon import OfflineEmissionsTracker
@@ -465,7 +467,10 @@ def train_bgrl(data, hid_dim, out_dim, lambd=1e-5,
     in_dim = data.num_features
     n_layers = n_layers
 
-    num_class = int(data.y.max().item()) + 1
+    try:
+        num_class = int(data.y.max().item()) + 1
+    except:
+        num_class = 4 # mouse
     N = data.num_nodes
 
     ##### Train the BGRL model #####
@@ -628,13 +633,24 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_spagcn(G, cluster_labels, in_dim, hid_dim, out_dim, epochs, n_layers):
-    sparse = G.sparse
+def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr):
     edge_index = G.edge_index
+    edge_weight = G.edge_weight
+    feats = G.x
+    model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
+    loss_values = model.fit(feats, edge_index, edge_weight)
+    embeds = model.predict(feats, edge_index)[0]
+    embeds = embeds.detach().numpy()
+    return model, embeds, loss_values
+
+def train_spagcn(G, hid_dim, out_dim, epochs, fmr):
     feats = G.x
     edge_weight = G.edge_weight
-    model = SPAGCN(in_dim=in_dim, nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers)
-    loss_values = model.fit(cluster_labels, feats, sparse, edge_index, edge_weight)
-    embeds = model.predict(feats, edge_index)[0]
+    edge_index = G.edge_index
+
+    model = SPAGCN(in_dim=feats.shape[1], hid_dim=feats.shape[1], out_dim=out_dim, \
+        epochs=epochs, fmr=fmr)
+    loss_values = model.fit(feats, edge_index, edge_weight)
+    embeds = model.predict(feats, edge_index, edge_weight)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values

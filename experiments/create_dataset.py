@@ -14,12 +14,26 @@ from torch_geometric.transforms import NormalizeFeatures
 
 sys.path.append('../')
 from data_utils import *
-from graph_utils import convert_to_graph
+from graph_utils import convert_to_graph, mouse_convert_to_graph
 from experiments.SBM.read_SBM import *
 from experiments.simulation_utils import *
 import networkx as nx
 import matplotlib.pyplot as plt
+from ogb.nodeproppred import PygNodePropPredDataset
 
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import os
+import torch
+from sklearn.neighbors import kneighbors_graph, radius_neighbors_graph
+from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
+from sklearn.preprocessing import StandardScaler
+import joblib
+from io import BytesIO
+import requests
+import scanpy as sp
 
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
                    standardize=True, centers = 4, cluster_std = [0.1,0.1,1.0,1.0],
@@ -31,39 +45,39 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         X_ambient, cluster_labels = datasets.make_blobs( n_samples=n_samples, centers=centers, 
                                         cluster_std=cluster_std, random_state=random_state)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
         X_manifold = X_ambient
 
     elif name == 'Sphere':
         X_ambient, X_manifold, cluster_labels   = create_sphere(r = 1, size = n_samples,  a = a, b=b, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == 'Circles':
         X_ambient, X_manifold, cluster_labels =create_circles(ratio = ratio_circles, size = n_samples, a = a, b=b, 
                                                               noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                            radius_knn = radius_knn, bw = bw,featdim = 50,)
+                            radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == 'Moons':
         X_ambient, X_manifold, cluster_labels = create_moons(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == 'Swissroll':
         X_ambient, X_manifold, cluster_labels = create_swissroll(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
-        G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+        G = convert_to_graph(X_manifold, n_neighbours=n_neighbours, features=features, standardize=standardize, 
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
 
     elif name == "Trefoil":
         X_ambient, X_manifold, cluster_labels = create_trefoil(size = n_samples, a = a, b=b, noise= noise, n_bins = n_bins)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
         
     elif name == "Helix":
@@ -72,7 +86,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
                                                              radius_torus=radius_torus, 
                                                              radius_tube=radius_tube, nb_loops=nb_loops)
         G = convert_to_graph(X_ambient, n_neighbours=n_neighbours, features=features, standardize=standardize, 
-                             radius_knn = radius_knn, bw = bw,featdim = 50,)
+                             radius_knn = radius_knn, bw = bw,featdim = featdim,)
         G.y = torch.from_numpy(cluster_labels)
              
     elif name == 'SBM':
@@ -100,6 +114,64 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
+    
+    elif name == 'Products':
+        dataset = PygNodePropPredDataset(name = 'ogbn-products', transform=NormalizeFeatures()) 
+        G = dataset[0]
+        G.edge_weight = torch.ones(G.edge_index.shape[1])
+        X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
+        X_manifold = X_ambient
+
+    elif name == 'Cancer':
+        adata = sc.read("cancer/sample_data.h5ad")
+        adj=np.loadtxt('cancer/adj.csv', delimiter=',')
+        adata.var_names_make_unique()
+        spg.prefilter_genes(adata,min_cells=3) # avoiding all genes are zeros
+        spg.prefilter_specialgenes(adata)
+        #Normalize and take log for UMI
+        sc.pp.normalize_per_cell(adata)
+        sc.pp.log1p(adata)
+
+        G.x = adata.X.toarray()
+        G.edge_weight = torch.exp((edge_weights - max(edge_weights))/max(edge_weights))
+    
+    elif name == 'Mouse1' or 'Mouse2' or 'Mouse3':
+        spatial_lda_models = {}  
+
+        PATH_TO_3MODEL = "spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
+        URL_SPLEEN_DF_PKL = "https://github.com/calico/spatial_lda/raw/primary/data/spleen/spleen_df.pkl"
+        PATH_TO_SPLEEN_DF_PKL = "spleen/spleen_dfs.pkl" 
+        PATH_TO_SPLEEN_FEATURES_PKL = "spleen/spleen_cells_features.pkl" 
+
+        
+        spatial_lda_models[3] = pickle.load(open(PATH_TO_3MODEL, "rb"))
+
+        try:
+            codex_df_dict = pickle.load(open(PATH_TO_SPLEEN_DF_PKL, "rb"))
+        except:
+            codex_df_dict = joblib.load(BytesIO(requests.get(URL_SPLEEN_DF_PKL).content))
+            with open(PATH_TO_SPLEEN_DF_PKL, "wb") as file:
+                pickle.dump(codex_df_dict, file)
+
+        for df in codex_df_dict.values():
+            df['x'] = df['sample.X']
+            df['y'] = df['sample.Y']
+        wt_samples = [ x for x in codex_df_dict.keys() if x.startswith("BALBc")]
+        spleen_dfs = dict(zip(wt_samples, [ codex_df_dict[x] for x in wt_samples]))
+  
+        with open(PATH_TO_SPLEEN_FEATURES_PKL, 'rb') as f:
+            spleen_cells_features = pickle.load(f)
+
+        graph_list, cluster_labels, coord_list = mouse_convert_to_graph(spleen_dfs,'sample.X', 'sample.Y', 
+        spatial_lda_models[3].topic_weights,)
+        # z_col=None, n_neighbours = 0, features='markers', processing ='znorm', 
+        # radius_knn = 100, bw = None)
+
+        num = name[-1]
+        G = graph_list[f'BALBc-{num}']
+        X_ambient = coord_list[f'BALBc-{num}']
+        X_manifold = X_ambient
+        cluster_labels = cluster_labels[f'BALBc-{num}']
 
     else:
         raise ValueError("Data unknown!!")

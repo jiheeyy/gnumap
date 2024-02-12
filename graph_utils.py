@@ -15,6 +15,16 @@ from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected, to_ne
 from scipy.sparse.csgraph import shortest_path
 from scipy.sparse.csgraph import dijkstra
 from scipy.sparse import csr_matrix
+from sklearn import manifold
+import pickle
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import os
+import torch
+from sklearn.neighbors import kneighbors_graph, radius_neighbors_graph
+from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
+from sklearn.preprocessing import StandardScaler
 
 
 def get_weights(data, neighbours=15, method = 'laplacian', beta=1,
@@ -124,7 +134,7 @@ def deg(index, num_nodes: Optional[int] = None,
 
 
 def convert_to_graph(X, n_neighbours =15, features='none', standardize=True,
-                     radius_knn = 0., featdim = 50, bw = None):                
+                     radius_knn = 0., featdim = 0, bw = None):                
     n = X.shape[0]
     if standardize:
         scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -142,12 +152,92 @@ def convert_to_graph(X, n_neighbours =15, features='none', standardize=True,
         feats = torch.from_numpy(X).float()
     elif features == 'ones':
         feats = torch.ones(n, featdim)
+    elif features== 'lap':
+        lap = manifold.SpectralEmbedding(n_components=10, n_neighbors=n_neighbours)
+        feats = lap.fit_transform(X)
+        feats = torch.tensor(feats).float()
     else:
         feats = torch.eye(n)
         
     new_data = Data(x=feats, edge_index=edge_index, # 
-                    edge_weight=-(edge_weights - max(edge_weights))/max(edge_weights),
-                    sparse=A.toarray())
+                    edge_weight= torch.exp((edge_weights - max(edge_weights))/max(edge_weights)), #torch.exp(-(edge_weights**2)/(2 * bw**2)),
+                    sparse=A.toarray()) # heat kernel
     ## edge_weight kernel transf 0 1 todo
     return new_data
 
+def plot_bcell_topic_multicolor(ax, sample_idx, topic_weights, spleen_dfs):
+    topic_weights = topic_weights.iloc[topic_weights.index.map(lambda x: x[0])==sample_idx]
+    
+    cell_coords = spleen_dfs[sample_idx]
+    non_b_coords = cell_coords[~cell_coords.isb]
+    ax.scatter(
+        non_b_coords['sample.Y'],
+        non_b_coords['sample.X'],
+        s=1,
+        c='k',
+        marker='x',
+        label='Non-B',
+        alpha=.2)
+
+    cell_coords['cluster'] = -1
+    cell_indices = topic_weights.index.map(lambda x: x[1])
+    cell_coords.loc[cell_indices,'cluster'] = np.argmax(np.array(topic_weights), axis=1)
+    
+    return cell_coords['cluster']
+
+MS_marker_list = ['CD45', 'Ly6C', 'TCR', 'Ly6G', 'CD19',
+       'CD169', 'CD106', 'CD3', 'CD1632', 'CD8a', 'CD90', 'F480', 'CD11c',
+       'Ter119', 'CD11b', 'IgD', 'CD27', 'CD5', 'CD79b', 'CD71', 'CD31', 'CD4',
+       'IgM', 'B220', 'ERTR7', 'CD35', 'CD2135', 'CD44', 'NKp46','MHCII', 'blank_Cy3_cyc15', 'blank_Cy5_cyc15']
+
+def mouse_convert_to_graph(sample_dfs, x_col, y_col, topic_weights, z_col=None,
+                     n_neighbours = 5, features='markers', processing ='znorm',
+                     marker_list = MS_marker_list, 
+                     radius_knn = 0., bw = None):
+    if processing == "maxabs":
+        scaler = MaxAbsScaler()
+    elif processing == "znorm":
+        scaler = StandardScaler()
+        
+    graph_list = dict()
+    cluster_labels = dict()
+    coord_list = dict()
+    edge = torch.empty([2, 1]) #add space holder
+    weights = []
+    
+    sample_idxs =  sample_dfs.keys()
+
+    if z_col is None:
+        coords = [x_col, y_col]
+    else:
+        coords = [x_col, y_col, z_col]
+   
+    for sample_idx in set(sample_idxs):
+        subset_rows = sample_dfs[sample_idx]
+        cell_coords = sample_dfs[sample_idx][coords].values
+        if radius_knn > 0 :
+            A = radius_neighbors_graph(cell_coords, radius = radius_knn, mode='distance', include_self=False) # edge weight is given by a transformation of the distance
+        else:
+            A = kneighbors_graph(cell_coords, n_neighbours, mode='distance', include_self=False) # edge weight is given by distance
+        edge_index, edge_weights = from_scipy_sparse_matrix(A)
+        edge_index, edge_weights = to_undirected(edge_index, edge_weights)
+        n = cell_coords.shape[0]
+        if bw is None:
+            bw = torch.max(edge_weights)
+        if features == 'markers':
+            feats =  subset_rows.loc[:, marker_list].values
+            feats = scaler.fit_transform(feats)
+        elif features == 'ones':
+            feats = torch.ones(n, n)
+        else:
+            feats = torch.eye(n)
+
+        small_graph = Data(x=torch.from_numpy(feats).float(), edge_index=edge_index, # 
+                        edge_weight=torch.exp(-(edge_weights**2)/(2 * bw**2))) # heat kernel
+        graph_list[sample_idx] = small_graph
+
+        coord_list[sample_idx] = cell_coords
+        
+        fig, ax = plt.subplots(figsize=(4,4))
+        cluster_labels[sample_idx] = plot_bcell_topic_multicolor(ax, sample_idx, topic_weights, sample_dfs)
+    return graph_list, cluster_labels, coord_list

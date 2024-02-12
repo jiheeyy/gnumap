@@ -461,7 +461,6 @@ class GCNConv(MessagePassing):
 
         self._cached_edge_index = None
         self._cached_adj_t = None
-
         self.lin = Linear(in_channels, out_channels, bias=False)
         torch.nn.init.xavier_normal_(self.lin.weight, gain=0.003)
 

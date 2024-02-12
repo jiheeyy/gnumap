@@ -5,8 +5,10 @@
 *.ipynb
 *.pyc
 # *.csv
-# *.pkl
+*.pkl
 *.pyc
+*.err
+*.out
 .DS_Store
 
 
@@ -19,3 +21,4 @@ experiments/logs/*
 experiments/results/*
 experiments/model_weights/*
 notebooks/*
+experiments/dataset/*
