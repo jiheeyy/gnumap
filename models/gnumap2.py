@@ -91,6 +91,7 @@ class GNUMAP2(nn.Module):
             
             lowdim_dist = torch.cat((pos_p_norm_distances, neg_p_norm_distances), dim=0)
             q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
+            print(q.shape)
         return current_embedding, q
 
     def loss_function(self, p, q,reg):
