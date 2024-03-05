@@ -9,7 +9,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=80G #10G
+#SBATCH --mem-per-cpu=30G #10G
 #SBATCH --mail-type=ALL  # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=jiheeyou@rcc.uchicago.edu  # mail notification for the job
 
@@ -32,7 +32,7 @@ if [ ! -d "hyper/$1" ]; then
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-    python experiment_main.py --name_dataset $1 --filename hyper/$1 --save_img 1 --large_class 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
+    python experiment_main.py --name_dataset $1 --filename hyper/$1 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
 else
-    python experiment_main.py --name_dataset $1 --filename hyper/$1 --save_img 0 --large_class 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
+    python experiment_main.py --name_dataset $1 --filename hyper/$1 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
 fi

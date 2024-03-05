@@ -43,7 +43,7 @@ from experiments.experiment import *
 from metrics.evaluation_metrics import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--name_dataset', type=str, default='Cora')
+parser.add_argument('--name_dataset', type=str, default='Swissroll')
 parser.add_argument('--filename', type=str, default='test')
 parser.add_argument('--split', type=str, default='PublicSplit')
 
@@ -68,7 +68,6 @@ parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GNUMAP2'
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
                     help='List of models to run')
 parser.add_argument('--large_class', type=int, default=0)
-parser.add_argument('--variance', type=int, default=0)
 parser.add_argument('--result_file', type=str, default='result_file')
 args = parser.parse_args()
 
@@ -77,11 +76,8 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 save_img = bool(args.save_img)
 large_class = bool(args.large_class)
-variance = bool(args.variance)
 if large_class:
-     models_to_test = ['CCA-SSG']#['CCA-SSG','GNUMAP2','SPAGCN','UMAP']
-elif variance:
-     models_to_test = ['CCA-SSG']
+     models_to_test = ['CCA-SSG','GNUMAP2','SPAGCN','UMAP']
 else:
      models_to_test = args.jm
 name_file = args.result_file
@@ -110,7 +106,7 @@ def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
             is_gray = mapped_colors == gray_color
 
             plt.scatter(X_ambient[is_gray, 0], X_ambient[is_gray, 1], s=1, c=gray_color, alpha=0.2)
-            plt.scatter(X_ambient[~is_gray, 0], X_ambient[~is_gray, 1], s=3, c=mapped_colors[~is_gray])
+            plt.scatter(X_ambient[~is_gray, 0], X_ambient[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
             plt.gca().get_yaxis().set_visible(False)
             plt.gca().get_xaxis().set_visible(False)
         else:
@@ -140,30 +136,24 @@ def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
 
 def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
     fig, (ax1) = plt.subplots(1, 1, figsize=(4,4))
-    print('vizgen')
     if X is not None:
-        print('notnone')
         if model_name == 'GRACE' or X.shape[1] == 3:
             # 3D scatter plot
             ax1 = fig.add_subplot(121, projection='3d')
             ax1.scatter(X[:, 0], X[:, 1], X[:, 2], c=cluster_labels, cmap=plt.cm.Spectral)
         elif X.shape[1] == 2:
-            print(args.name_dataset)
             if args.name_dataset[:5] == 'Mouse':
-                print('correct viz')
                 color_palette = ["#877688", "#73377f", "#1c9a70", "#35609f"]
                 gray_color = "#877688"
 
                 cluster_to_color = {cluster: color_palette[i] for i, cluster in enumerate(sorted(cluster_labels.unique()))}
                 mapped_colors = cluster_labels.map(cluster_to_color).values
                 is_gray = mapped_colors == gray_color
-                print('before scatter')
                 ax1.scatter(X[is_gray, 0], X[is_gray, 1], s=1, c=gray_color, alpha=0.2)
                 ax1.scatter(X[~is_gray, 0], X[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
-                print('scattered')
             else:
                 # 2D scatter plot
-                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
+                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral, s=10)
                 ax1.grid(False)
 
         # Output dimension more than 3
@@ -190,17 +180,13 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
-alpha_array = [0.5] #np.arange(0,1,0.5)
-beta_array = [1] #np.arange(0,1,0.5)
-lambda_array = [1e-3] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
-tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
+alpha_array = [0.5, 1] #np.arange(0,1,0.5)
+beta_array = [0.5, 1] #np.arange(0,1,0.5)
+lambda_array = [1e-4, 1e-2] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
+tau_array = [0.1, 1.] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
-fmr_array = [0.3] #[0, 0.1,0.2,0.6]
-edr_array = [0.5] #[0,0.1]
-
-if variance:
-     alpha_array = np.arange(0,1,0.5)
-     beta_array = np.arange(0,1,0.5)
+fmr_array = [0, 0.6] #[0, 0.1,0.2,0.6]
+edr_array = [0,0.1] #[0,0.1]
 
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
@@ -224,6 +210,7 @@ args_params = {
 
 
 for model_name in models_to_test:
+    best_acc = 0
     if model_name not in ['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
                             raise ValueError('Invalid model name')
@@ -238,23 +225,25 @@ for model_name in models_to_test:
     for combination in product(*model_hyperparameters.values()):
         params = dict(zip(model_hyperparameters.keys(), combination))
 
-        # try:
-        mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, large_class,
-                    out_dim=out_dim, name_file=name_file, 
-                    random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
-                    **args_params,
-                    **params)
-        if save_img:
-            print('1')
-            visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-            new_dir_path) 
-            # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-            # new_dir_path)
-        else:
+        try:
+            mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, large_class,
+                        out_dim=out_dim, name_file=name_file, 
+                        random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
+                        **args_params,
+                        **params)
+            res['save_img'] = False
+            if save_img and res['acc'] > best_acc:
+                best_acc = res['acc']
+                res['save_img'] = True # most recent True means that image was saved for the model
+                visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+                new_dir_path) 
+                # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
+                # new_dir_path)
+            else:
+                pass
+        except:
+            res = None
             pass
-        # except:
-        #     res = None
-        #     pass
         
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}
 
