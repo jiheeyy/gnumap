@@ -27,12 +27,12 @@ result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 echo "result file is ${result_file}"
 # For PEANUT. MIDWAY3 $HOME/gnumap/experiments
 cd /home/jiheeyou/Desktop/gnumap/experiments
-if [ ! -d "hyper/$1" ]; then
-    mkdir -p "hyper/$1}"
+if [ ! -d "results/$2" ]; then
+    mkdir -p "results/$2"
 fi
 
 if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-    python experiment_main.py --name_dataset $1 --filename hyper/$1 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
+    python experiment_main.py --name_dataset $1 --filename $2 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
 else
-    python experiment_main.py --name_dataset $1 --filename hyper/$1 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
+    python experiment_main.py --name_dataset $1 --filename $2 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
 fi

@@ -39,10 +39,10 @@ class GNUMAP2(nn.Module):
         self.epochs, self.in_dim, self.out_dim = epochs, in_dim, out_dim
         self.alpha, self.beta = self.find_ab_params(spread=5, min_dist=0.001)
         
-    def find_ab_params(self, spread=1, min_dist=0.1):
+    def find_ab_params(self, spread=5, min_dist=0.001):
         """Exact UMAP function for fitting a, b params"""
-        # spread=1, min_dist=0.1 default umap value -> a=1.57, b=0.89
-        # spread=1, min_dist=0.01 -> a=1.92, b=0.79
+        # spread=1, min_dist=0.1 default umap value -> a=1.58, b=0.9
+        # spread=5, min_dist=0.001 -> a=0.15, b=0.79
 
         def curve(x, a, b):
             return 1.0 / (1.0 + a * x ** (2 * b))
@@ -91,7 +91,9 @@ class GNUMAP2(nn.Module):
             
             lowdim_dist = torch.cat((pos_p_norm_distances, neg_p_norm_distances), dim=0)
             q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
-            print(q.shape)
+            # TODO: could widening z . dij is too close widening-z
+            # One way is to divide by maxium value, so that everything's between 0 and 1
+            # TODO: get clumped up distance. diagnositic plots on distance
         return current_embedding, q
 
     def loss_function(self, p, q,reg):
@@ -150,7 +152,16 @@ class GNUMAP2(nn.Module):
         pos_edge_count = edge_index.shape[1]
         neg_edge_count = n_items - pos_edge_count
         reg = neg_edge_count / pos_edge_count
+        reg= 1 # TODO change
 
+        np_edge_index = edge_index.numpy()
+        pos_col = [f"pos_{i} ({np_edge_index[0][i]}, {np_edge_index[1][i]})" for i in range(len(np_edge_index[0]))]
+        neg_col = [f"neg_{n}" for n in range(len(negative_sampling(edge_index).numpy()[0]))]
+        col = pos_col + neg_col
+        q_df = pd.DataFrame(columns = col)
+        p_pos = dict(zip(pos_col, edge_weight.numpy()))
+        np.save(f'/Users/jiheeyou/Desktop/gnumap/experiments/results/a{round(self.alpha,2)}_b{round(self.beta,2)}_reg{round(reg,2)}.npy', p_pos)
+        
         self.train()
         for epoch in range(self.epochs):
             optimizer.zero_grad()
@@ -158,18 +169,16 @@ class GNUMAP2(nn.Module):
             current_embedding, q = self(features, edge_index, row_neg, col_neg)
             q.requires_grad_(True)
             # rq = self.density_r(q, torch.cdist(current_embedding, current_embedding))
-
             # cov_matrix = torch.cov(torch.stack((rp,rq)))
             # corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
             p_sampled = torch.cat((p[edge_index[0],edge_index[1]], p[row_neg, col_neg]), dim=0)
             loss = self.loss_function(p_sampled, q, reg)
             loss.backward()
             optimizer.step()
+            q_df.loc[len(q_df.index)] = q.detach().numpy()
             loss_np = loss.item()
             loss_values.append([loss_np, loss.item(), -1]) #corr.item()
             print("Epoch ", epoch, " |  Loss ", loss_np) # Corr ",corr
-            print(reg)
-
             # if round(loss_np, 2) < best:
             #     best = loss
             #     cnt_wait = 0
@@ -178,6 +187,7 @@ class GNUMAP2(nn.Module):
             # if cnt_wait == 50 and epoch > 50:
             #     print('Early stopping at epoch {}!'.format(epoch))
             #     break
+        q_df.to_csv(f'/Users/jiheeyou/Desktop/gnumap/experiments/results/a{round(self.alpha,2)}_b{round(self.beta,2)}_reg{round(reg,2)}.csv')
         return loss_values #rp.detach().numpy()
 
     def predict(self, features, edge_index):

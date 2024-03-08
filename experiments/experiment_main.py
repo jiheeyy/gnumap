@@ -51,6 +51,7 @@ parser.add_argument('--epoch', type=int, default=400)
 parser.add_argument('--noise', type=float, default=0)
 parser.add_argument('--n_layers', type=int, default=2)
 parser.add_argument('--n_neighbours', type=int, default=50)
+parser.add_argument('--n_samples', type=int, default=1000)
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--hid_dim', type=int, default=256)
 parser.add_argument('--out_dim', type=int, default=None)
@@ -86,7 +87,7 @@ if not os.path.exists(new_dir_path):
     os.makedirs(new_dir_path)
 results = {}
 
-X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=1000,features=args.features,featdim = 20,
+X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_samples=args.n_samples,features=args.features,featdim = 20,
                                                           n_neighbours=args.n_neighbours,standardize=True,
                                                           centers=4, cluster_std=[0.1, 0.1, 1.0, 1.0],
                                                           ratio_circles=0.2, noise=args.noise,
@@ -185,7 +186,7 @@ beta_array = [0.5, 1] #np.arange(0,1,0.5)
 lambda_array = [1e-4, 1e-2] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
 tau_array = [0.1, 1.] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
-fmr_array = [0, 0.6] #[0, 0.1,0.2,0.6]
+fmr_array = [0.1] #[0, 0.1,0.2,0.6]
 edr_array = [0,0.1] #[0,0.1]
 
 hyperparameters = {

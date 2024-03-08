@@ -1,10 +1,7 @@
 
 *.pyc
 *.ipynb
-*.ipynb
-*.ipynb
 *.pyc
-# *.csv
 *.pkl
 *.pyc
 *.err
@@ -17,7 +14,7 @@ experiments/__pycache__/*
 __pycache__/
 logs/*
 log_dir/*
-experiments/logs/*
+experiments/archive/logs/*
 experiments/results/*
 experiments/experiments/model_weights/*
 notebooks/*
