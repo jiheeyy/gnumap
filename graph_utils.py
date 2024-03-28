@@ -193,7 +193,7 @@ MS_marker_list = ['CD45', 'Ly6C', 'TCR', 'Ly6G', 'CD19',
 def mouse_convert_to_graph(sample_dfs, x_col, y_col, topic_weights, z_col=None,
                      n_neighbours = 5, features='markers', processing ='znorm',
                      marker_list = MS_marker_list, 
-                     radius_knn = 0., bw = None):
+                     radius_knn = 0., bw = None, sample=False):
     if processing == "maxabs":
         scaler = MaxAbsScaler()
     elif processing == "znorm":
@@ -214,7 +214,12 @@ def mouse_convert_to_graph(sample_dfs, x_col, y_col, topic_weights, z_col=None,
    
     for sample_idx in set(sample_idxs):
         subset_rows = sample_dfs[sample_idx]
+        subset_rows['fake_index'] = range(len(subset_rows))
         cell_coords = sample_dfs[sample_idx][coords].values
+        if sample:
+            subset_rows = subset_rows.sample(frac=0.05)
+            sampled_indices = subset_rows['fake_index'].values
+            cell_coords = np.array([cell_coords[i] for i in sampled_indices])
         if radius_knn > 0 :
             A = radius_neighbors_graph(cell_coords, radius = radius_knn, mode='distance', include_self=False) # edge weight is given by a transformation of the distance
         else:
@@ -239,5 +244,7 @@ def mouse_convert_to_graph(sample_dfs, x_col, y_col, topic_weights, z_col=None,
         coord_list[sample_idx] = cell_coords
         
         fig, ax = plt.subplots(figsize=(4,4))
-        cluster_labels[sample_idx] = plot_bcell_topic_multicolor(ax, sample_idx, topic_weights, sample_dfs)
+        original_cluster_labels = plot_bcell_topic_multicolor(ax, sample_idx, topic_weights, sample_dfs).values
+        cluster_labels[sample_idx] = pd.Series(data=[original_cluster_labels[i] for i in sampled_indices],
+        index=subset_rows.index)
     return graph_list, cluster_labels, coord_list

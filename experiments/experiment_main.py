@@ -181,13 +181,13 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
-alpha_array = [0.5, 1] #np.arange(0,1,0.5)
-beta_array = [0.5, 1] #np.arange(0,1,0.5)
-lambda_array = [1e-4, 1e-2] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
-tau_array = [0.1, 1.] #[0.1, 0.2, 0.5, 1., 10]
+alpha_array = [0.5] #np.arange(0,1,0.5)
+beta_array = [0.5] #np.arange(0,1,0.5)
+lambda_array = [1e-4] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
+tau_array = [0.1] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
 fmr_array = [0.1] #[0, 0.1,0.2,0.6]
-edr_array = [0,0.1] #[0,0.1]
+edr_array = [0] #[0,0.1]
 
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},

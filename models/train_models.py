@@ -24,6 +24,7 @@ from models.clgr import CLGR
 from models.vgnae import *
 from models.gnumap2 import GNUMAP2
 from models.spagcn import SPAGCN
+#from models.gae import *
 import matplotlib.pyplot as plt
 from scipy import optimize
 import scipy
@@ -654,3 +655,10 @@ def train_spagcn(G, hid_dim, out_dim, epochs, fmr):
     embeds = model.predict(feats, edge_index, edge_weight)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values
+
+def train_vgae(G, hid_dim, out_dim, epochs):
+    feats = G.x
+    edge_weight = G.edge_weight
+    edge_index = G.edge_index
+
+    model = VGAE()
