@@ -35,6 +35,11 @@ from io import BytesIO
 import requests
 import scanpy as sp
 
+import os.path as osp
+from typing import Callable, List, Optional
+from torch_geometric.data import Data, InMemoryDataset, download_url
+from torch_geometric.utils import coalesce
+
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
                    standardize=True, centers = 4, cluster_std = [0.1,0.1,1.0,1.0],
                    ratio_circles = 0.2, noise = 0.05, 
@@ -173,6 +178,95 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         X_manifold = X_ambient
         cluster_labels = cluster_labels[f'BALBc-{num}']
 
+    elif name.split('_')[0] == 'road':
+        class Roads(InMemoryDataset):
+            r"""The Roads dataset from SSTD 2005 "On Trip Planning Queries in Spatial Databases"
+            https://users.cs.utah.edu/~lifeifei/SpatialDataset.htm
+
+            Args:
+                root (str): Root directory where the dataset should be saved.
+                name (str): The name of the dataset (:obj:`"cal"`, :obj:`"SF"`, 
+                    :obj:`"NA"`, :obj:`"TG"`, :obj:`"OL"`).
+                transform (callable, optional): A function/transform that takes in an
+                    :obj:`torch_geometric.data.Data` object and returns a transformed
+                    version. The data object will be transformed before every access.
+                    (default: :obj:`None`)
+                pre_transform (callable, optional): A function/transform that takes in
+                    an :obj:`torch_geometric.data.Data` object and returns a
+                    transformed version. The data object will be transformed before
+                    being saved to disk. (default: :obj:`None`)
+            """
+
+            def __init__(
+                self,
+                root: str,
+                name: str,
+                transform: Optional[Callable] = None,
+                pre_transform: Optional[Callable] = None,
+            ) -> None:
+                self.name = name
+                assert self.name in ['cal','SF','NA','TG','OL']
+                self.edge_url = ('https://users.cs.utah.edu/~lifeifei/research/tpq/{}.cedge')
+                self.node_url = ('https://users.cs.utah.edu/~lifeifei/research/tpq/{}.cnode')
+                super().__init__(root, transform, pre_transform)
+                self.data, self.slices = torch.load(self.processed_paths[0])
+
+
+            @property
+            def raw_dir(self) -> str:
+                return osp.join(self.root, self.name, 'raw')
+
+            @property
+            def processed_dir(self) -> str:
+                return osp.join(self.root, self.name, 'processed')
+
+            @property
+            def raw_file_names(self) -> List[str]:
+                return [f'{self.name}.cnode', f'{self.name}.cedge']
+
+            @property
+            def processed_file_names(self) -> str:
+                return 'data.pt'
+
+            def download(self) -> None:
+                download_url(self.edge_url.format(self.name), self.raw_dir)
+                download_url(self.node_url.format(self.name), self.raw_dir)
+
+            def process(self) -> None:
+                index_map, xs = {}, []
+                with open(self.raw_paths[0], 'r') as f:
+                    rows = f.read().split('\n')[:-1] #see
+                    for i, row in enumerate(rows):
+                        idx, long, lat = row.split()
+                        index_map[int(idx)] = i
+                        xs.append([float(long), float(lat)])
+                x = torch.tensor(xs)
+        #         y = torch.tensor(ys, dtype=torch.long)
+
+                edge_indices, edge_weights = [], []
+                with open(self.raw_paths[1], 'r') as f:
+                    rows = f.read().split('\n')[:-1] #see
+                    for row in rows:
+                        _, src, dst, w = row.split()
+                        edge_indices.append([index_map[int(src)], index_map[int(dst)]])
+                        edge_weights.append(float(w))
+
+                edge_index = torch.tensor(edge_indices).t().contiguous()
+                edge_index = coalesce(edge_index, num_nodes=x.size(0))
+
+                edge_weights = torch.tensor(edge_weights)
+                edge_weights = 1.01-torch.exp((edge_weights - max(edge_weights))/max(edge_weights))
+
+                data = Data(x=x, edge_index=edge_index, edge_weights=edge_weights)#, y=y
+                data = data if self.pre_transform is None else self.pre_transform(data)
+                torch.save(self.collate([data]), self.processed_paths[0])
+
+            def __repr__(self) -> str:
+                return f'{self.name.capitalize()}Roads()'
+        dataset = Roads(root='Pytorch_Tes', name=name.split('_')[1])
+        G = dataset[0]
+        X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
+        X_manifold = X_ambient
     else:
         raise ValueError("Data unknown!!")
     

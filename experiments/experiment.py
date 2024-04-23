@@ -40,7 +40,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                 lr=np.nan, n_neighbors=np.nan, dataset=np.nan,
                 alpha=np.nan, beta=np.nan, gnn_type=np.nan, tau=np.nan, lambd=np.nan, edr=np.nan, fmr=np.nan,
                 name_file=np.nan, save_img=np.nan,
-                random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20):
+                random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,local_reg=True):
     # num_classes = int(data.y.max().item()) + 1
     loss_values = [1] # placeholder for 6 models without training
     rp = None
@@ -98,7 +98,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                                                   epochs=epochs, lr=lr, wd=wd, name_file=name_file,
                                                   alpha=alpha, beta=beta, gnn_type=gnn_type)
     elif model_name == "GNUMAP2":
-        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr)
+        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr, local_reg)
     elif model_name == "SPAGCN":  # alpha TODO
         model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, fmr)
     elif model_name == 'PCA':

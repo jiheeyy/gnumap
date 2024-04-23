@@ -54,7 +54,7 @@ parser.add_argument('--n_neighbours', type=int, default=50)
 parser.add_argument('--n_samples', type=int, default=1000)
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--hid_dim', type=int, default=256)
-parser.add_argument('--out_dim', type=int, default=None)
+parser.add_argument('--out_dim', type=int, default=2)
 
 parser.add_argument('--a', type=float, default=1.)  # data construction
 parser.add_argument('--b', type=float, default=1.)  # data construction
@@ -70,6 +70,7 @@ parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GNUMAP2'
                     help='List of models to run')
 parser.add_argument('--large_class', type=int, default=0)
 parser.add_argument('--result_file', type=str, default='result_file')
+parser.add_argument('--local_reg', type=float, default=1)
 args = parser.parse_args()
 
 seed = args.seed
@@ -136,9 +137,9 @@ def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
 
 
 def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
-    fig, (ax1) = plt.subplots(1, 1, figsize=(4,4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8,4))
     if X is not None:
-        if model_name == 'GRACE' or X.shape[1] == 3:
+        if X.shape[1] == 3:
             # 3D scatter plot
             ax1 = fig.add_subplot(121, projection='3d')
             ax1.scatter(X[:, 0], X[:, 1], X[:, 2], c=cluster_labels, cmap=plt.cm.Spectral)
@@ -169,13 +170,13 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
         ax1.set_facecolor('black')
 
     # Plotting loss values on the second subplot
-    # if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
-    #     ax2.plot(loss_values, color='blue')
-    #     ax2.set_title('Loss Over Time')
-    #     ax2.set_xlabel('Epoch')
-    #     ax2.set_ylabel('Loss')
-    # else:
-    #     pass
+    if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
+        ax2.plot(loss_values, color='blue')
+        ax2.set_title('Loss Over Time')
+        ax2.set_xlabel('Epoch')
+        ax2.set_ylabel('Loss')
+    else:
+        pass
     
     final_save_path = os.path.join(save_path, model_name+file_name+'.png')
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
@@ -184,7 +185,7 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
 alpha_array = [0.5] #np.arange(0,1,0.5)
 beta_array = [0.5] #np.arange(0,1,0.5)
 lambda_array = [1e-4] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
-tau_array = [0.1] #[0.1, 0.2, 0.5, 1., 10]
+tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric'] #['symmetric','RW']
 fmr_array = [0.1] #[0, 0.1,0.2,0.6]
 edr_array = [0] #[0,0.1]
@@ -206,7 +207,8 @@ args_params = {
     'lr': args.lr,
     'n_neighbors': args.n_neighbours,
     'dataset': args.name_dataset,
-    'save_img': args.save_img
+    'save_img': args.save_img,
+    'local_reg': bool(args.local_reg)
 }
 
 
@@ -218,8 +220,6 @@ for model_name in models_to_test:
     model_hyperparameters = hyperparameters[model_name]
     if args.out_dim:
         out_dim = args.out_dim
-    elif model_name =='GRACE':
-        out_dim=3
     else:
         out_dim=min(X_manifold.shape[1],2)
 

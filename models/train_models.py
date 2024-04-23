@@ -634,12 +634,12 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr):
+def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr, local_reg):
     edge_index = G.edge_index
     edge_weight = G.edge_weight
     feats = G.x
     model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
-    loss_values = model.fit(feats, edge_index, edge_weight)
+    loss_values = model.fit(feats, edge_index, edge_weight, local_reg=local_reg)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values
