@@ -65,14 +65,15 @@ parser.add_argument('--features', type=str, default='lap')  # graph construction
 
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=int, default=1)
-parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
+parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GRACE','GNUMAP2', 'GNUMAP','SPAGCN',
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP',
                             'GAE','VGAE'],
                     help='List of models to run')
 parser.add_argument('--large_class', type=int, default=0)
 parser.add_argument('--basic', type=int, default=0)
 parser.add_argument('--result_file', type=str, default='result_file')
-parser.add_argument('--eval', type=str, default='y') # make this None to not evaluate
+parser.add_argument('--eval', type=int, default=1) # make this 0 to not evaluate
+parser.add_argument('--single', type=int, default=0) # make this 1 for single testing
 args = parser.parse_args()
 
 seed = args.seed
@@ -82,6 +83,8 @@ random.seed(seed)
 save_img = bool(args.save_img)
 large_class = bool(args.large_class)
 basic = bool(args.basic)
+eval = bool(args.eval)
+single = bool(args.single)
 if basic:
      models_to_test = ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']
 else:
@@ -186,8 +189,8 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
-alpha_array = np.arange(0,1,0.5) #np.arange(0,1,0.5)
-beta_array = np.arange(0,1,0.5) #np.arange(0,1,0.5)
+alpha_array = np.arange(0,1,0.5)
+beta_array = np.arange(0,1,0.5)
 lambda_array = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
 tau_array = [0.1, 0.2, 0.5, 1., 10] #[0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric', 'RW'] #['symmetric','RW']
@@ -195,16 +198,15 @@ fmr_array = [0, 0.2,0.5] #[0, 0.2,0.6]
 edr_array = [0,0.2,0.5] #[0,0.2,0.5]
 
 hyperparameters = {
-    'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
-    'GNUMAP':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
+    'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
-    'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
+    'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array}, #TODO
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'GNUMAP2':{'fmr':fmr_array}, # TODO: implement edr
-    'SPAGCN': {'fmr':fmr_array},
+    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},#TODO 
+    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{},
-    'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'edr':edr_array},
-    'GAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'edr':edr_array}
+    'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},
+    'GAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array}
 }
 args_params = {
     'epochs': args.epoch,
@@ -236,7 +238,7 @@ for model_name in models_to_test:
             mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, large_class,
                         out_dim=out_dim, name_file=name_file, 
                         random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
-                        eval=args.eval,
+                        eval=eval,
                         **args_params,
                         **params)
             res['save_img'] = False
@@ -250,8 +252,9 @@ for model_name in models_to_test:
         except:
             res = None
             print(traceback.format_exc())
-        
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}
+        if single:
+            break
 
 file_path = new_dir_path + '/' + args.name_dataset + '_' + str(args.seed) + '.csv'
 pd.DataFrame.from_dict(results, orient='index').to_csv(file_path)

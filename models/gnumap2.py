@@ -34,9 +34,12 @@ class GNUMAP2(nn.Module):
                  out_dim=2,
                  epochs=400,
                  n_layers=2,
-                 fmr=0):
+                 fmr=0,
+                 gnn_type=None,
+                 alpha=None,
+                 beta=None):
         super().__init__()
-        self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=fmr)
+        self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=fmr, gnn_type=gnn_type, alpha=alpha, beta=beta)
         self.epochs, self.in_dim, self.out_dim = epochs, in_dim, out_dim
         self.alpha, self.beta = self.find_ab_params(spread=1, min_dist=0.1)
         
@@ -86,14 +89,12 @@ class GNUMAP2(nn.Module):
         def CE(highd, lowd, reg):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
-            eps = 1e-9 # To prevent log(0)
-            pos_CE = torch.sum(highd * logsigmoid(lowd+eps))
-            neg_CE = torch.sum((1 - highd) * logsigmoid(1 - lowd+eps))
-            return - (reg * pos_CE + neg_CE)
+            pos_CE = torch.sum(highd * logsigmoid(lowd))
+            neg_CE = torch.sum((1 - highd) * logsigmoid(1 - lowd))
+            return - (pos_CE + neg_CE)
         
         loss = CE(p, q, reg)
         return loss
-        # 30*pos term tensor(-245.8658, grad_fn=<SumBackward0>) tensor(-38504.0508, grad_fn=<SumBackward0>)
         
     def fit(self, features, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0):
         loss_values = []
@@ -125,7 +126,7 @@ class GNUMAP2(nn.Module):
         possible_edges = (features.shape[0]*(features.shape[0]-1))/2
         num_edges = len(edge_index[0])
         reg = possible_edges / num_edges
-        print(reg)
+        pos_p = p[edge_index[0],edge_index[1]]
 
         self.train()
         for epoch in range(self.epochs):
@@ -134,8 +135,8 @@ class GNUMAP2(nn.Module):
             current_embedding, q = self(features, edge_index, row_neg, col_neg)
             q.requires_grad_(True)
 
-            p_sampled = torch.cat((p[edge_index[0],edge_index[1]], p[row_neg, col_neg]), dim=0)
-
+            p_sampled = torch.cat((pos_p, p[row_neg, col_neg]), dim=0)
+ 
             loss = self.loss_function(p_sampled, q, reg)
             loss.backward()
             nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)

@@ -53,7 +53,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                                        patience=patience,
                                        epochs=epochs, lr=lr,
                                        name_file=name_file,
-                                       alpha=alpha, beta=beta, gnn_type=gnn_type)
+                                       alpha=alpha, beta=beta, gnn_type=gnn_type, dropout_rate=fmr)
         embeds = model.get_embedding(G)
 
     elif model_name == 'GRACE':  # a b type t
@@ -99,9 +99,11 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                                                   epochs=epochs, lr=lr, wd=wd, name_file=name_file,
                                                   alpha=alpha, beta=beta, gnn_type=gnn_type)
     elif model_name == "GNUMAP2":
-        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr)
-    elif model_name == "SPAGCN":  # alpha TODO
-        model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, fmr)
+        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr, gnn_type,
+                                         alpha, beta)
+    elif model_name == "SPAGCN":
+        model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, fmr, gnn_type,
+                                         alpha, beta)
     elif model_name == 'PCA':
         model = PCA(n_components=out_dim)
         embeds = model.fit_transform(
@@ -129,24 +131,25 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
     elif model_name == 'GAE':
         model, loss_values = train_gae(G, hid_dim=hid_dim, out_dim=out_dim,
                                          epochs=epochs, n_layers=n_layers, 
-                                         dropout_rate=edr, gnn_type=gnn_type)
+                                         dropout_rate=fmr, gnn_type=gnn_type,
+                                         alpha=alpha, beta=beta)
         embeds = model.encode(G.x, G.edge_index).detach()
     elif model_name == 'VGAE':
         model, loss_values = train_gae(G, hid_dim=hid_dim, out_dim=out_dim,
                                          epochs=epochs, variational=True, n_layers=n_layers, 
-                                         dropout_rate=edr, gnn_type=gnn_type)
+                                         dropout_rate=fmr, gnn_type=gnn_type,
+                                         alpha=alpha, beta=beta)
         embeds = model.encode(G.x, G.edge_index).detach()
     else:
         raise ValueError("Model unknown!!")
 
     try:
         loss_values = [item.item() for item in loss_values]
-        print(loss_values)
     except:
         pass
     
     end_time = time.time()
-    results=[]
+    results={}
     if eval:
         global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
                                                 dataset=dataset)

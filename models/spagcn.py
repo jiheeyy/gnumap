@@ -21,9 +21,10 @@ from torch.nn.parameter import Parameter
 from torch.nn.modules.module import Module
 
 class SPAGCN(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_dim, epochs, fmr=0, alpha=0.2):
+    def __init__(self, in_dim, hid_dim, out_dim, epochs, fmr, gnn_type, alpha, beta):
         super(SPAGCN, self).__init__()
-        self.gc = GCN(in_dim=in_dim, hid_dim=hid_dim, out_dim=out_dim, n_layers=1, dropout_rate=fmr)
+        self.gc = GCN(in_dim=in_dim, hid_dim=hid_dim, out_dim=out_dim, n_layers=1, dropout_rate=fmr,
+        alpha=0.5, beta=0.5, gnn_type=gnn_type)
         self.epochs = epochs
         self.out_dim=out_dim
         #self.mu determined by the init method

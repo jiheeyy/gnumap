@@ -634,23 +634,26 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr):
+def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr, gnn_type,
+                                         alpha, beta):
     edge_index = G.edge_index
     edge_weight = G.edge_weight
     feats = G.x
-    model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
+    model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, 
+    n_layers=n_layers, fmr=fmr, gnn_type=gnn_type, alpha=alpha, beta=beta)
     loss_values = model.fit(feats, edge_index, edge_weight)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values
 
-def train_spagcn(G, hid_dim, out_dim, epochs, fmr):
+def train_spagcn(G, hid_dim, out_dim, epochs, fmr, gnn_type,
+                                         alpha, beta):
     feats = G.x
     edge_weight = G.edge_weight
     edge_index = G.edge_index
 
     model = SPAGCN(in_dim=feats.shape[1], hid_dim=feats.shape[1], out_dim=out_dim, \
-        epochs=epochs, fmr=fmr)
+        epochs=epochs, fmr=fmr, gnn_type=gnn_type, alpha=alpha, beta=beta)
     loss_values = model.fit(feats, edge_index, edge_weight)
     embeds = model.predict(feats, edge_index, edge_weight)[0]
     embeds = embeds.detach().numpy()
