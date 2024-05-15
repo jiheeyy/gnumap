@@ -18,27 +18,20 @@
 echo "My SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
 echo "My SLURM_ARRAY_JOB_ID: " $SLURM_ARRAY_JOB_ID
 
-# Add lines here to run your computations
+
 job_id=$SLURM_ARRAY_JOB_ID
 source /opt/conda/etc/profile.d/conda.sh
 conda activate gnumap
 
 result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+filename="${1}_${2}"
 echo "result file is ${result_file}"
+echo "filename is ${filename}"
 # For PEANUT. MIDWAY3 $HOME/gnumap/experiments
 cd /home/jiheeyou/Desktop/gnumap/experiments
 
-
-if [ "$5" = "each" ]; then
-    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --jm $4 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
-    else
-        python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --jm $4 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
-    fi
+if [ "$2" -eq 1 ]; then
+    python experiment_main.py --name_dataset $1 --basic 1 --filename $filename --result_file $result_file
 else
-    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img 1 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
-    else
-        python experiment_main.py --name_dataset $1 --filename $2 --out_dim $3 --save_img 0 --result_file $result_file --seed $SLURM_ARRAY_TASK_ID
-    fi
+    python experiment_main.py --name_dataset $1 --jm $2 --filename $filename --result_file $result_file
 fi

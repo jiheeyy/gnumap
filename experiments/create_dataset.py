@@ -140,7 +140,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         G.x = adata.X.toarray()
         G.edge_weight = torch.exp((edge_weights - max(edge_weights))/max(edge_weights))
     
-    elif name == 'Mouse1' or 'Mouse2' or 'Mouse3':
+    elif name == 'Mouse1' or  name == 'Mouse2' or name =='Mouse3':
         spatial_lda_models = {}  
 
         PATH_TO_3MODEL = "spleen/spleen_training_penalty=0.25_topics=3_trainfrac=0.99.pkl"
@@ -265,7 +265,7 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
                 return f'{self.name.capitalize()}Roads()'
         dataset = Roads(root='Pytorch_Tes', name=name.split('_')[1])
         G = dataset[0]
-        X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
+        X_ambient, cluster_labels = G.x, G.y
         X_manifold = X_ambient
     else:
         raise ValueError("Data unknown!!")

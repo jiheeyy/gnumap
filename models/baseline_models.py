@@ -2,7 +2,7 @@ from numbers import Number
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, GraphNorm
 from models.aggregation import *
 from models.aggregation import GAPPNP
 
@@ -20,26 +20,40 @@ def weights_init(m):
         nn.init.xavier_uniform_(m.weight.data)
 
 class GCN(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_dim, n_layers,dropout_rate, normalized= True, gnn_type = "symmetric", alpha = 0.5, beta = 1.0):
+    def __init__(self, in_dim, hid_dim, out_dim, n_layers,dropout_rate, normalized= True, gnn_type = "symmetric", alpha = 0.5, beta = 1.0, norm_layer=False):
         super().__init__()
         self.n_layers = n_layers
         self.p = dropout_rate
         self.normalized = normalized
+        self.norm_layer, self.batch_norms, self.norm_type = norm_layer, nn.ModuleList(), GraphNorm #GraphNorm # nn.BatchNorm1d
         self.convs = nn.ModuleList()
+
         if n_layers > 1:
             self.convs.append(GCNConv(in_dim, hid_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
+            if norm_layer:
+                self.batch_norms.append(self.norm_type(hid_dim))
             for i in range(n_layers - 2):
                 self.convs.append(GCNConv(hid_dim, hid_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
+                if norm_layer:
+                    self.batch_norms.append(self.norm_type(hid_dim))
             self.convs.append(GCNConv(hid_dim, out_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
+            if norm_layer:
+                self.batch_norms.append(self.norm_type(out_dim))
         else:
             self.convs.append(GCNConv(in_dim, out_dim, gnn_type = gnn_type, alpha = alpha, beta = beta))
+            if norm_layer:
+                self.batch_norms.append(self.norm_type(out_dim))
+
 
     def forward(self, x, edge_index, edge_weight = None):
         for i in range(self.n_layers - 1):
             x = F.relu(self.convs[i](x, edge_index, edge_weight)) # nn.PReLU
+            if self.norm_layer:
+                x = self.batch_norms[i](x)
             x = F.dropout(x, p = self.p)
             if self.normalized is True:
                 x = F.normalize(x)
+            
         x = self.convs[-1].float()(x.float(), edge_index, edge_weight)
         return x
 

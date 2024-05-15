@@ -17,6 +17,7 @@ import pickle
 import argparse
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import traceback
 # from carbontracker.tracker import CarbonTracker
 import copy, collections
 import networkx as nx, numpy as np
@@ -50,8 +51,8 @@ parser.add_argument('--split', type=str, default='PublicSplit')
 parser.add_argument('--epoch', type=int, default=400)
 parser.add_argument('--noise', type=float, default=0)
 parser.add_argument('--n_layers', type=int, default=2)
-parser.add_argument('--n_neighbours', type=int, default=50)
-parser.add_argument('--n_samples', type=int, default=1000)
+parser.add_argument('--n_neighbours', type=int, default=20)
+parser.add_argument('--n_samples', type=int, default=500)
 parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--hid_dim', type=int, default=256)
 parser.add_argument('--out_dim', type=int, default=2)
@@ -64,22 +65,25 @@ parser.add_argument('--features', type=str, default='lap')  # graph construction
 
 parser.add_argument('--seed', type=int, default=1)
 parser.add_argument('--save_img', type=int, default=1)
-parser.add_argument('--jcsv', type=float, default=True)  # make csv?
 parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
-                            'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP'],
+                            'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP',
+                            'GAE','VGAE'],
                     help='List of models to run')
 parser.add_argument('--large_class', type=int, default=0)
+parser.add_argument('--basic', type=int, default=0)
 parser.add_argument('--result_file', type=str, default='result_file')
-parser.add_argument('--local_reg', type=float, default=1)
+parser.add_argument('--eval', type=str, default='y') # make this None to not evaluate
 args = parser.parse_args()
 
 seed = args.seed
 np.random.seed(seed)
 torch.manual_seed(seed)
+random.seed(seed)
 save_img = bool(args.save_img)
 large_class = bool(args.large_class)
-if large_class:
-     models_to_test = ['CCA-SSG','GNUMAP2','SPAGCN','UMAP']
+basic = bool(args.basic)
+if basic:
+     models_to_test = ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']
 else:
      models_to_test = args.jm
 name_file = args.result_file
@@ -94,7 +98,7 @@ X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_s
                                                           ratio_circles=0.2, noise=args.noise,
                                                           radius_knn=args.radius_knn, bw=args.bw,
                                                           SBMtype='lazy',a=args.a,
-                                                          b=args.b)
+                                                          b=args.b, random_state=seed)
 
 def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
     if save_img:
@@ -120,10 +124,9 @@ def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
     else:
         pass
 
-visualize_dataset(X_manifold, cluster_labels, title=args.name_dataset, save_img=save_img,
-                  save_path=new_dir_path + "/manifold_" + args.name_dataset + ".png")
-# visualize_dataset(X_ambient, cluster_labels, title=args.name_dataset, save_img=save_img,
-#                   save_path=os.getcwd() + '/results/' + "ambient_" + name_file + ".png")
+visualize_dataset(X_manifold, cluster_labels, 
+title=f'{args.name_dataset} a={str(args.a)}, b={str(args.b)}, {str(args.n_samples)} Points', 
+save_img=save_img, save_path=new_dir_path + "/manifold_" + args.name_dataset + ".png")
 
 def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
     if rp is not None:
@@ -155,8 +158,9 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
                 ax1.scatter(X[~is_gray, 0], X[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
             else:
                 # 2D scatter plot
+                ax1.set_title(model_name)
                 ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral, s=10)
-                ax1.grid(False)
+                ax1.grid(True)
 
         # Output dimension more than 3
         else:
@@ -182,13 +186,13 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
-alpha_array = [0.5] #np.arange(0,1,0.5)
-beta_array = [0.5] #np.arange(0,1,0.5)
-lambda_array = [1e-4] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
-tau_array = [0.5] #[0.1, 0.2, 0.5, 1., 10]
-type_array = ['symmetric'] #['symmetric','RW']
-fmr_array = [0.1] #[0, 0.1,0.2,0.6]
-edr_array = [0] #[0,0.1]
+alpha_array = np.arange(0,1,0.5) #np.arange(0,1,0.5)
+beta_array = np.arange(0,1,0.5) #np.arange(0,1,0.5)
+lambda_array = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
+tau_array = [0.1, 0.2, 0.5, 1., 10] #[0.1, 0.2, 0.5, 1., 10]
+type_array = ['symmetric', 'RW'] #['symmetric','RW']
+fmr_array = [0, 0.2,0.5] #[0, 0.2,0.6]
+edr_array = [0,0.2,0.5] #[0,0.2,0.5]
 
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
@@ -198,7 +202,9 @@ hyperparameters = {
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
     'GNUMAP2':{'fmr':fmr_array}, # TODO: implement edr
     'SPAGCN': {'fmr':fmr_array},
-    'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{}
+    'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{},
+    'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'edr':edr_array},
+    'GAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'edr':edr_array}
 }
 args_params = {
     'epochs': args.epoch,
@@ -208,14 +214,14 @@ args_params = {
     'n_neighbors': args.n_neighbours,
     'dataset': args.name_dataset,
     'save_img': args.save_img,
-    'local_reg': bool(args.local_reg)
 }
 
 
 for model_name in models_to_test:
     best_acc = 0
     if model_name not in ['DGI','BGRL','GRACE','CCA-SSG','GNUMAP2', 'GNUMAP','SPAGCN',
-                            'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
+                            'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP',
+                            'VGAE','GAE']:
                             raise ValueError('Invalid model name')
     model_hyperparameters = hyperparameters[model_name]
     if args.out_dim:
@@ -230,6 +236,7 @@ for model_name in models_to_test:
             mod, res, out, loss_values, rp = experiment(model_name, G, X_ambient, X_manifold, cluster_labels, large_class,
                         out_dim=out_dim, name_file=name_file, 
                         random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
+                        eval=args.eval,
                         **args_params,
                         **params)
             res['save_img'] = False
@@ -238,16 +245,13 @@ for model_name in models_to_test:
                 res['save_img'] = True # most recent True means that image was saved for the model
                 visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
                 new_dir_path) 
-                # visualize_density(X_ambient, rp, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-                # new_dir_path)
             else:
                 pass
         except:
             res = None
-            pass
+            print(traceback.format_exc())
         
         results[model_name+ '_' + name_file + str(params)] = res if res is not None else {}
 
-if args.jcsv:
-    file_path = new_dir_path + '/' + args.name_dataset + '_' + str(args.seed) + '.csv'
-    pd.DataFrame.from_dict(results, orient='index').to_csv(file_path)
+file_path = new_dir_path + '/' + args.name_dataset + '_' + str(args.seed) + '.csv'
+pd.DataFrame.from_dict(results, orient='index').to_csv(file_path)

@@ -1,12 +1,11 @@
 #!/bin/bash
 
 # Run the Python script with the specified dataset
-python experiment_main.py --name_dataset Cora --filename 2d_sampling_Cora --out_dim 2
-python experiment_main.py --name_dataset Cora --filename 3d_sampling_Cora --out_dim 3
-python experiment_main.py --name_dataset Pubmed --filename 2d_sampling_Pubmed --out_dim 2
-python experiment_main.py --name_dataset Pubmed --filename 3d_sampling_Pubmed --out_dim 3
-python experiment_main.py --name_dataset Citeseer --filename 2d_sampling_Citeseer --out_dim 2
-python experiment_main.py --name_dataset Citeseer --filename 3d_sampling_Citeseer --out_dim 3
+python experiment_main.py --name_dataset Cora --filename Cora --jm GNUMAP2 VGAE GRACE
+python experiment_main.py --name_dataset road_cal --filename road_cal --jm GNUMAP2 VGAE GRACE
+# python experiment_main.py --name_dataset Swissroll --filename Swissroll --jm GNUMAP2 VGAE GRACE
+# python experiment_main.py --name_dataset Swissroll --filename Swissroll_a10 --a 10 --jm GNUMAP2 VGAE GRACE
+# python experiment_main.py --name_dataset Sphere --filename Sphere --jm GNUMAP2 VGAE GRACE
 
 # In terminal
 # chmod +x exp.sh

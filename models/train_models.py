@@ -24,7 +24,7 @@ from models.clgr import CLGR
 from models.vgnae import *
 from models.gnumap2 import GNUMAP2
 from models.spagcn import SPAGCN
-#from models.gae import *
+from torch_geometric.nn import GAE
 import matplotlib.pyplot as plt
 from scipy import optimize
 import scipy
@@ -634,12 +634,12 @@ def train_clgr(data, hid_dim, channels,
     # tracker.stop()
     return (model)
 
-def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr, local_reg):
+def train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr):
     edge_index = G.edge_index
     edge_weight = G.edge_weight
     feats = G.x
     model = GNUMAP2(in_dim=feats.shape[1], nhid=hid_dim, out_dim=out_dim, epochs=epochs, n_layers=n_layers, fmr=fmr)
-    loss_values = model.fit(feats, edge_index, edge_weight, local_reg=local_reg)
+    loss_values = model.fit(feats, edge_index, edge_weight)
     embeds = model.predict(feats, edge_index)[0]
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values
@@ -656,9 +656,75 @@ def train_spagcn(G, hid_dim, out_dim, epochs, fmr):
     embeds = embeds.detach().numpy()
     return model, embeds, loss_values
 
-def train_vgae(G, hid_dim, out_dim, epochs):
-    feats = G.x
-    edge_weight = G.edge_weight
-    edge_index = G.edge_index
 
-    model = VGAE()
+def train_gae(G, hid_dim, out_dim, epochs, variational=False, n_layers=2, dropout_rate=0.2, normalized=True, gnn_type = "symmetric", alpha = 0.5, beta = 1.0):
+    class GCNEncoder(torch.nn.Module):
+        def __init__(self, in_channels, out_channels):
+            super(GCNEncoder, self).__init__()
+            self.conv1 = GCN(in_channels, hid_dim, out_dim, n_layers=n_layers, 
+            dropout_rate=dropout_rate, normalized=normalized, gnn_type=gnn_type, 
+            alpha=alpha, beta=beta)
+
+        def forward(self, x, edge_index):
+            return self.conv1(x, edge_index)
+    
+    class VariationalGCNEncoder(torch.nn.Module):
+        def __init__(self, in_channels, out_channels):
+            super(VariationalGCNEncoder, self).__init__()
+            self.conv_mu = GCN(in_channels, hid_dim, out_dim, n_layers=n_layers, 
+            dropout_rate=dropout_rate, normalized=normalized, gnn_type=gnn_type, 
+            alpha=alpha, beta=beta)
+            self.conv_logstd = GCN(in_channels, hid_dim, out_dim, n_layers=n_layers, 
+            dropout_rate=dropout_rate, normalized=normalized, gnn_type=gnn_type, 
+            alpha=alpha, beta=beta)
+
+        def forward(self, x, edge_index):
+            return self.conv_mu(x, edge_index), self.conv_logstd(x, edge_index)
+
+    num_features = G.x.shape[1]
+    if variational:
+        model = VGAE(VariationalGCNEncoder(num_features, out_dim)) 
+    else:
+        model = GAE(GCNEncoder(num_features, out_dim))
+
+    # move to GPU (if available)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    x = G.x.to(device)
+    train_edge_index = G.edge_index.to(device)
+
+    # inizialize the optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
+    def train_gae_one_epoch():
+        model.train()
+        optimizer.zero_grad()
+        z = model.encode(x, train_edge_index)
+        loss = model.recon_loss(z, train_edge_index)
+        loss.backward()
+        optimizer.step()
+        return float(loss)
+    
+    def train_vgae_one_epoch():
+        model.train()
+        optimizer.zero_grad()
+        z = model.encode(x, train_edge_index)
+        loss = model.recon_loss(z, train_edge_index)
+        loss = loss + (1 / G.x.shape[0]) * model.kl_loss()  # new line
+        loss.backward()
+        optimizer.step()
+        return float(loss)
+
+    loss_vals = []
+    if variational:
+        for epoch in range(epochs):
+            loss = train_vgae_one_epoch()
+            print('Epoch: {:03d}, Loss: {}'.format(epoch, loss))
+            loss_vals.append(loss)
+    else:
+        for epoch in range(epochs):
+            loss = train_gae_one_epoch()
+            print('Epoch: {:03d}, Loss: {}'.format(epoch, loss))
+            loss_vals.append(loss)
+    
+    return model, loss_vals

@@ -61,11 +61,8 @@ class GRACE(nn.Module):
 
     def semi_loss(self, z1, z2):
         f = lambda x: torch.exp(x / self.tau)
-        # refl_sim = f(self.sim(z1, z1))
-        # between_sim = f(self.sim(z1, z2))
-        z1max, z2max =  z1.max(dim=1).values, z2.max(dim=1).values
-        refl_sim = f(z1max * self.sim(z1, z1))
-        between_sim = f(z1max * z2max * self.sim(z1, z2))
+        refl_sim = f(self.sim(z1, z1))
+        between_sim = f(self.sim(z1, z2))
         return -torch.log(between_sim.diag() / (refl_sim.sum(1) + between_sim.sum(1) - refl_sim.diag()))
 
     def loss(self, z1, z2, layer="nonlinear-hid", mean = True):

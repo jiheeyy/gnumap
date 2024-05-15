@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 from torch_geometric.utils import negative_sampling, to_scipy_sparse_matrix
 from scipy.sparse.csgraph import shortest_path
 from scipy.sparse import csr_matrix
+import random
 
 class GNUMAP2(nn.Module):
     def __init__(self,
@@ -40,7 +41,7 @@ class GNUMAP2(nn.Module):
         self.alpha, self.beta = self.find_ab_params(spread=1, min_dist=0.1)
         
     def find_ab_params(self, spread=1, min_dist=0.1):
-        """Exact UMAP function for fitting a, b params"""
+        # Exact UMAP function for fitting a, b params
         # spread=1, min_dist=0.1 default umap value -> a=1.58, b=0.9
         # spread=5, min_dist=0.001 -> a=0.15, b=0.79
 
@@ -54,29 +55,11 @@ class GNUMAP2(nn.Module):
         params, covar = curve_fit(curve, xv, yv)
         return params[0], params[1]
 
-    # def forward(self, features, edge_index):
-    #     """
-    #     Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
-    #     """
-    #     row_neg, col_neg = negative_sampling(edge_index)
-    #     # Positive edges denoted by edge_index
-    #     # Negative edges denoted by row_neg, col_neg
-
-    #     current_embedding = self.gc(features, edge_index)
-
-    #     # I want to make these two lines faster by sampling only from edge_index and row_neg, col_neg
-    #     lowdim_dist = torch.cdist(current_embedding,current_embedding)
-    #     q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
-    #     return current_embedding, q
     def forward(self, features, edge_index, row_neg=None, col_neg=None):
-        """
-        Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
-        """
+
+        # Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
+
         current_embedding = self.gc(features, edge_index)
-        # for i in range(current_embedding.shape[1]):
-        #     min_val = torch.min(current_embedding[:, i])
-        #     max_val = torch.max(current_embedding[:, i])
-        #     current_embedding[:, i] = -1 + 2 * (current_embedding[:, i] - min_val) / (max_val - min_val)
 
         if row_neg is None or col_neg is None:
             q = None
@@ -93,31 +76,26 @@ class GNUMAP2(nn.Module):
             neg_diff = source_neg_embeddings - target_neg_embeddings
             neg_p_norm_distances = torch.norm(neg_diff, p=2, dim=1)
             
-            lowdim_dist = torch.cat((pos_p_norm_distances, neg_p_norm_distances), dim=0)
+            lowdim_dist = torch.cat((pos_diff, neg_diff), dim=0)
+            lowdim_dist = torch.norm(lowdim_dist, p=2, dim=1)
             q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
-            # TODO: could widening z . dij is too close widening-z
-            # One way is to divide by maxium value, so that everything's between 0 and 1
         return current_embedding, q
 
-    def loss_function(self, p, q,reg):
-        
+    def loss_function(self, p, q, reg):
+        logsigmoid= nn.LogSigmoid()
         def CE(highd, lowd, reg):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
             eps = 1e-9 # To prevent log(0)
-            return - (torch.sum(reg * highd * torch.log(lowd + eps)) + \
-                torch.sum((1 - highd) * torch.log(1 - lowd + eps))) / len(highd)
+            pos_CE = torch.sum(highd * logsigmoid(lowd+eps))
+            neg_CE = torch.sum((1 - highd) * logsigmoid(1 - lowd+eps))
+            return - (reg * pos_CE + neg_CE)
         
         loss = CE(p, q, reg)
         return loss
-
-    def density_r(self, array, dist):
-        r1 = torch.sum(torch.pow(torch.tensor(dist),2)) # sum(edge weight * dist^2) for each row
-        r2 = torch.sum(array, axis=1) # sum(edge weights) over each row
-        r = torch.log(r1/r2+1e-8) # for stability
-        return r
-
-    def fit(self, features, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0, local_reg=True):
+        # 30*pos term tensor(-245.8658, grad_fn=<SumBackward0>) tensor(-38504.0508, grad_fn=<SumBackward0>)
+        
+    def fit(self, features, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0):
         loss_values = []
         best = 1e9
         cnt_wait = 0
@@ -127,69 +105,44 @@ class GNUMAP2(nn.Module):
         elif opt == "adam":
             optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
 
-        """ 
-        Probability distribution in highdim defined as the sparse adj matrix with probability of node connection.
-        No further updates to p
-        """
 
-        # Calculate density term in highdim
-        # TODO: Why does this produce more than intended number of edges?
+        # Probability distribution in highdim defined as the sparse adj matrix with probability of node connection.
+        # No further updates to p
+
+
+        # More nonzero p than n_neighbors because includes duplicates
         p = torch.zeros((features.shape[0],features.shape[0])) # 1000,1000
         for i in range(len(edge_weight)):
             source = edge_index[0, i]
             target = edge_index[1, i]
             weight = edge_weight[i]
             p[source, target] = weight # create p from edge_index, edge_weight
+            # p here is between 0 to 1. That's why it works well with normalized lowdim distances.
 
-        # sparse_p = to_scipy_sparse_matrix(edge_index, num_nodes=features.shape[0])
-        # pdist = shortest_path(csr_matrix(sparse_p),directed = False)
-        # pdist[np.isinf(pdist)] = np.max(pdist[~np.isinf(pdist)])*2
+    
+        # q is probability distribution in lowdim
+        # q will be updated at each forward pass
+        possible_edges = (features.shape[0]*(features.shape[0]-1))/2
+        num_edges = len(edge_index[0])
+        reg = possible_edges / num_edges
+        print(reg)
 
-        #rp = self.density_r(p, pdist) # edge weights, distance between datapoints are same in highdim
-        """ 
-        q is probability distribution in lowdim
-        q will be updated at each forward pass
-        """
-
-        # np_edge_index = edge_index.numpy()
-        # pos_col = [f"pos_{i} ({np_edge_index[0][i]}, {np_edge_index[1][i]})" for i in range(len(np_edge_index[0]))]
-        # neg_col = [f"neg_{n}" for n in range(len(negative_sampling(edge_index).numpy()[0]))]
-        # col = pos_col + neg_col
-        # q_df = pd.DataFrame(columns = col)
-        # p_pos = dict(zip(pos_col, edge_weight.numpy()))
-        # np.save(f'/Users/jiheeyou/Desktop/gnumap/experiments/results/a{round(self.alpha,2)}_b{round(self.beta,2)}_reg{round(reg,2)}.npy', p_pos)
-        
         self.train()
         for epoch in range(self.epochs):
             optimizer.zero_grad()
             row_neg, col_neg = negative_sampling(edge_index)
             current_embedding, q = self(features, edge_index, row_neg, col_neg)
             q.requires_grad_(True)
-            # rq = self.density_r(q, torch.cdist(current_embedding, current_embedding))
-            # cov_matrix = torch.cov(torch.stack((rp,rq)))
-            # corr = cov_matrix[0, 1] / torch.sqrt(cov_matrix[0, 0] * cov_matrix[1, 1])
+
             p_sampled = torch.cat((p[edge_index[0],edge_index[1]], p[row_neg, col_neg]), dim=0)
 
-            # reg = number of total possible connection of source nodes (= N nodes),
-            # divided by the number of positive edges from source node  
-            # If node 1 is the source node for 45 connections, reg[1] = 1000/45
-            # Then, reg appends torch.ones to account for negative edges.       
-            edge_index_0 = edge_index[0]
-            if local_reg:
-                _ , counts = torch.unique(edge_index_0, return_counts=True)
-                counts = len(p) / counts
-                reg = counts[edge_index_0]
-                reg = torch.cat((reg, torch.ones(len(row_neg))), dim=0)
-            else:
-                reg = torch.ones(len(row_neg)*2) 
             loss = self.loss_function(p_sampled, q, reg)
             loss.backward()
-            torch.nn.utils.clip_grad_value_(self.parameters(), max_norm=1.0)
+            nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
             optimizer.step()
-            # q_df.loc[len(q_df.index)] = q.detach().numpy()
             loss_np = loss.item()
-            loss_values.append([loss_np, loss.item(), -1]) #corr.item()
-            print("Epoch ", epoch, " |  Loss ", loss_np) # Corr ",corr
+            loss_values.append([loss_np, loss.item(), -1])
+            print("Epoch ", epoch, " |  Loss ", loss_np)
             # if round(loss_np, 2) < best:
             #     best = loss
             #     cnt_wait = 0
@@ -198,8 +151,7 @@ class GNUMAP2(nn.Module):
             # if cnt_wait == 50 and epoch > 50:
             #     print('Early stopping at epoch {}!'.format(epoch))
             #     break
-        # q_df.to_csv(f'/Users/jiheeyou/Desktop/gnumap/experiments/results/a{round(self.alpha,2)}_b{round(self.beta,2)}_reg{round(reg,2)}.csv')
-        return loss_values #rp.detach().numpy()
+        return loss_values
 
     def predict(self, features, edge_index):
         current_embedding, q = self(features, edge_index)

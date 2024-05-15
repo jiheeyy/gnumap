@@ -40,7 +40,8 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                 lr=np.nan, n_neighbors=np.nan, dataset=np.nan,
                 alpha=np.nan, beta=np.nan, gnn_type=np.nan, tau=np.nan, lambd=np.nan, edr=np.nan, fmr=np.nan,
                 name_file=np.nan, save_img=np.nan,
-                random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,local_reg=True):
+                random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
+                eval=None):
     # num_classes = int(data.y.max().item()) + 1
     loss_values = [1] # placeholder for 6 models without training
     rp = None
@@ -98,7 +99,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                                                   epochs=epochs, lr=lr, wd=wd, name_file=name_file,
                                                   alpha=alpha, beta=beta, gnn_type=gnn_type)
     elif model_name == "GNUMAP2":
-        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr, local_reg)
+        model, embeds, loss_values = train_gnumap2(G, hid_dim, out_dim, epochs, n_layers, fmr)
     elif model_name == "SPAGCN":  # alpha TODO
         model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, fmr)
     elif model_name == 'PCA':
@@ -125,71 +126,31 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                           densmap=True, n_neighbors=n_neighbors,
                           min_dist=min_dist)
         embeds = model.fit_transform(X_ambient)
+    elif model_name == 'GAE':
+        model, loss_values = train_gae(G, hid_dim=hid_dim, out_dim=out_dim,
+                                         epochs=epochs, n_layers=n_layers, 
+                                         dropout_rate=edr, gnn_type=gnn_type)
+        embeds = model.encode(G.x, G.edge_index).detach()
+    elif model_name == 'VGAE':
+        model, loss_values = train_gae(G, hid_dim=hid_dim, out_dim=out_dim,
+                                         epochs=epochs, variational=True, n_layers=n_layers, 
+                                         dropout_rate=edr, gnn_type=gnn_type)
+        embeds = model.encode(G.x, G.edge_index).detach()
     else:
         raise ValueError("Model unknown!!")
 
     try:
         loss_values = [item.item() for item in loss_values]
+        print(loss_values)
     except:
         pass
     
     end_time = time.time()
-    if large_class:
-            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
-                                                     dataset=dataset)
-            print("done with the embedding evaluation")
-            results = {**global_metrics, **local_metrics}
-            results['model_name'] = model_name
-            results['out_dim'] = out_dim
-            results['hid_dim'] = hid_dim
-            results['n_neighbors'] = n_neighbors
-            results['min_dist'] = min_dist
-            results['lr'] = lr
-            results['edr'] = edr
-            results['fmr'] = fmr
-            results['tau'] = tau
-            results['lambd'] = lambd
-            results['pred_hid'] = pred_hid
-            results['alpha_gnn'] = alpha
-            results['beta_gnn'] = beta
-            results['gnn_type'] = gnn_type
-            results['time'] = end_time - start_time
-            print("done with the embedding evaluation")
-    elif model_name == 'GNUMAP2':
-        if np.isnan(loss_values[-1][:2]).any():
-            print('first path')
-            embeds = None
-            results = None
-        else:
-            print('second path')
-            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
-                                                     dataset=dataset)
-            print("done with the embedding evaluation")
-            results=[]
-            results = {**global_metrics, **local_metrics}
-            results['model_name'] = model_name
-            results['out_dim'] = out_dim
-            results['hid_dim'] = hid_dim
-            results['n_neighbors'] = n_neighbors
-            results['min_dist'] = min_dist
-            results['lr'] = lr
-            results['edr'] = edr
-            results['fmr'] = fmr
-            results['tau'] = tau
-            results['lambd'] = lambd
-            results['pred_hid'] = pred_hid
-            results['alpha_gnn'] = alpha
-            results['beta_gnn'] = beta
-            results['gnn_type'] = gnn_type
-            results['time'] = end_time - start_time
-    elif np.isnan(loss_values[-1]).any():
-        embeds = None
-        results = None
-    else:
+    results=[]
+    if eval:
         global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
-                                                 dataset=dataset)
+                                                dataset=dataset)
         print("done with the embedding evaluation")
-        results=[]
         results = {**global_metrics, **local_metrics}
         results['model_name'] = model_name
         results['out_dim'] = out_dim
