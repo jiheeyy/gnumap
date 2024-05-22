@@ -6,6 +6,11 @@ from torch_geometric.nn import GCNConv, GraphNorm
 from models.aggregation import *
 from models.aggregation import GAPPNP
 
+import numpy as np
+from sklearn.utils import deprecated
+from abc import ABC
+from scipy.linalg import expm
+
 class LogReg(nn.Module):
     def __init__(self, hid_dim, out_dim):
         super(LogReg, self).__init__()
@@ -268,3 +273,361 @@ class MLP(nn.Module):
         x = self.layer2(x)
 
         return x
+
+
+"""Implementation of https://github.com/vlivashkin/pygkernels"""
+class Scaler(ABC):
+    def __init__(self, A: np.ndarray = None):
+        self.eps = 10**-10
+        self.A = A
+
+    def scale_list(self, ts):
+        for t in ts:
+            yield self.scale(t)
+
+    def scale(self, t):
+        return t
+
+
+class Linear(Scaler):  # no transformation, for SP-CT
+    pass
+
+
+class AlphaToT(Scaler):  # α > 0 -> 0 < t < α^{-1}
+    def __init__(self, A: np.ndarray = None):
+        super().__init__(A)
+        cfm = np.linalg.eigvals(self.A)
+        self.rho = np.max(np.abs(cfm))
+
+    def scale(self, alpha):
+        return 1 / ((1 / alpha + self.rho + self.eps) + self.eps)
+
+
+class Rho(Scaler):  # pWalk, Walk
+    def __init__(self, A: np.ndarray = None):
+        super().__init__(A)
+        cfm = np.linalg.eigvals(self.A)
+        self.rho = np.max(np.abs(cfm))
+
+    def scale(self, t):
+        return t / (self.rho + self.eps)
+
+
+class Fraction(Scaler):  # Forest, logForest, Comm, logComm, Heat, logHeat, SCT, SCCT, ...
+    def scale(self, t):
+        return 0.5 * t / (1.0 - t + self.eps)
+
+
+class FractionReversed(Scaler):  # RSP, FE
+    def scale(self, beta):
+        return (1.0 - beta) / (beta + self.eps)
+
+@deprecated()
+def normalize(dm):
+    return dm / dm.std() if dm.std() != 0 else dm
+
+
+def get_D(A):
+    """
+    Degree matrix
+    """
+    return np.diag(np.sum(A, axis=0))
+
+
+def get_L(A):
+    """
+    Ordinary (or combinatorial) Laplacian matrix.
+    L = D - A
+    """
+    return get_D(A) - A
+
+
+def get_normalized_L(A):
+    """
+    Normalized Laplacian matrix.
+    L = D^{-1/2}*L*D^{-1/2}
+    """
+    D = get_D(A)
+    L = get_L(A)
+    D_12 = np.linalg.inv(np.sqrt(D))
+    return D_12.dot(L).dot(D_12)
+
+
+def get_P(A):
+    """
+    Markov matrix.
+    P = D^{-1}*A
+    """
+    D = get_D(A)
+    return np.linalg.inv(D).dot(A)
+
+
+def ewlog(K):
+    """
+    logK = element-wise log(K)
+    """
+    mask = K <= 0
+    K[mask] = 1
+    logK = np.log(K)
+    logK[mask] = -np.inf
+    return logK
+
+
+def K_to_D(K):
+    """
+    D = (k * 1^T + 1 * k^T - K - K^T) / 2
+    k = diag(K)
+    """
+    size = K.shape[0]
+    k = np.diagonal(K).reshape(-1, 1)
+    i = np.ones((size, 1))
+    return 0.5 * ((k.dot(i.transpose()) + i.dot(k.transpose())) - K - K.transpose())
+
+
+def D_to_K(D):
+    """
+    K = -1/2 H*D*H
+    H = I - E/n
+    """
+    size = D.shape[0]
+    I, E = np.eye(size), np.ones((size, size))
+    H = I - (E / size)
+    K = -0.5 * H.dot(D).dot(H)
+    return K
+
+class Kernel(ABC):
+    EPS = 10**-10
+    name, _default_scaler = None, None
+    _parent_distance_class, _parent_kernel_class = None, None
+
+    def __init__(self, A: np.ndarray):
+        assert not (self._parent_distance_class and self._parent_kernel_class)
+        if self._parent_distance_class:
+            self._parent_kernel = None
+            self._parent_distance = self._parent_distance_class(A)
+            self._default_scaler = self._parent_distance._default_scaler
+        elif self._parent_kernel_class:
+            self._parent_kernel = self._parent_kernel_class(A)
+            self._parent_distance = None
+            self._default_scaler = self._parent_kernel._default_scaler
+        self.scaler: Scaler = self._default_scaler(A)
+        self.A = A
+
+    def get_K(self, param):
+        if self._parent_distance:  # use D -> K transform
+            D = self._parent_distance.get_D(param)
+            return D_to_K(D)
+        elif self._parent_kernel:  # use element-wise log transform
+            H0 = self._parent_kernel.get_K(param)
+            return ewlog(H0)
+        else:
+            raise NotImplementedError()
+
+
+class CT_H(Kernel):
+    name, _default_scaler = "CT", Linear
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.K_CT = np.linalg.pinv(get_L(self.A))
+
+    def get_K(self, param=None):
+        return self.K_CT
+
+
+class Katz_H(Kernel):
+    name, _default_scaler = "Katz", Rho
+
+    def get_K(self, t):
+        """
+        H0 = (I - tA)^{-1}
+        """
+        size = self.A.shape[0]
+        return np.linalg.pinv(np.eye(size) - t * self.A)
+
+
+class For_H(Kernel):
+    name, _default_scaler = "For", Fraction
+
+    def get_K(self, t):
+        """
+        H0 = (I + tL)^{-1}
+        """
+        size = self.A.shape[0]
+        return np.linalg.inv(np.eye(size) + t * get_L(self.A))
+
+
+class Comm_H(Kernel):
+    name, _default_scaler = "Comm", Fraction
+
+    def get_K(self, t):
+        """
+        H0 = exp(tA)
+        """
+        return expm(t * self.A)  # if t < 30 else None
+
+
+class Heat_H(Kernel):
+    name, _default_scaler = "Heat", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.L = get_L(self.A)
+
+    def get_K(self, t):
+        """
+        H0 = exp(-tL)
+        """
+        return expm(-t * self.L)
+
+
+class NHeat_H(Kernel):
+    name, _default_scaler = "NHeat", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.nL = get_normalized_L(A)
+
+    def get_K(self, t):
+        """
+        H0 = exp(-t*nL)
+        """
+        return expm(-t * self.nL)
+
+
+class SCT_H(CT_H):
+    name, _default_scaler = "SCT", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.sigma = self.K_CT.std()
+        self.Kds = self.K_CT / (self.sigma + self.EPS)
+
+    def get_K(self, alpha):
+        """
+        H = 1/(1 + exp(-αL+/σ))
+        """
+        return 1.0 / (1.0 + np.exp(-alpha * self.Kds))
+
+
+class CCT_H(Kernel):
+    name, _default_scaler = "CCT", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.K_CCT = self.H_CCT(A)
+
+    def H_CCT(self, A: np.ndarray):
+        """
+        H = I - E / n
+        M = D^{-1/2}(A - dd^T/vol(G))D^{-1/2},
+            d is a vector of the diagonal elements of D,
+            vol(G) is the volume of the graph (sum of all elements of A)
+        K_CCT = HD^{-1/2}M(I - M)^{-1}MD^{-1/2}H
+        """
+        size = A.shape[0]
+        I = np.eye(size)
+        d = np.sum(A, axis=0).reshape((-1, 1))
+        D05 = np.diag(np.power(d, -0.5)[:, 0])
+        H = np.eye(size) - np.ones((size, size)) / size
+        volG = np.sum(A)
+        M = D05.dot(A - d.dot(d.transpose()) / volG).dot(D05)
+        return dot(D05).dot(M).dot(np.linalg.pinv(I - M)).dot(M).dot(D05).dot(H)
+
+    def get_K(self, alpha=None):
+        return self.K_CCT
+
+
+class SCCT_H(CCT_H):
+    name, _default_scaler = "SCCT", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.sigma = self.K_CCT.std()
+        self.Kds = self.K_CCT / self.sigma
+
+    def get_K(self, alpha):
+        """
+        H = 1/(1 + exp(-αL+/σ))
+        """
+        return 1.0 / (1.0 + np.exp(-alpha * self.Kds))
+
+
+class PPR_H(Kernel):
+    name, _default_scaler = "PPR", Linear
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.I = np.eye(A.shape[0])
+        self.P = get_P(A)
+
+    def get_K(self, alpha):
+        """
+        H = (I - αP)^{-1}
+        """
+        return np.linalg.inv(self.I - alpha * self.P)
+
+
+class ModifPPR_H(Kernel):
+    name, _default_scaler = "ModifPPR", Linear
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.D = get_D(A)
+
+    def get_K(self, alpha):
+        """
+        H = (I - αP)^{-1}*D^{-1} = (D - αA)^{-1}
+        """
+        return np.linalg.inv(self.D - alpha * self.A)
+
+
+class HeatPR_H(Kernel):
+    name, _default_scaler = "HeatPR", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.I = np.eye(A.shape[0])
+        self.P = get_P(A)
+
+    def get_K(self, t):
+        """
+        H = expm(-t(I - P))
+        """
+        return expm(-t * (self.I - self.P))
+
+
+class DF_H(Kernel):
+    name, _default_scaler = "DF", Fraction
+
+    def __init__(self, A: np.ndarray, n_iter=30):
+        super().__init__(A)
+        self.n_iter = n_iter
+        self.dfac = self.calc_double_factorial(n_iter)
+
+    @staticmethod
+    def calc_double_factorial(max_k):
+        mem = np.zeros((max_k + 1,))
+        mem[0], mem[1] = 1, 1
+        for i in range(2, max_k + 1):
+            mem[i] = mem[i - 2] * i
+        return mem
+
+    def get_K(self, t):
+        tA = t * self.A
+        K, tA_k = np.eye(tA.shape[0]), np.eye(tA.shape[0])
+        for i in range(1, self.n_iter):
+            tA_k = tA_k.dot(tA)
+            K += tA_k / self.dfac[i]
+        return K
+
+
+class Abs_H(Kernel):
+    name, _default_scaler = "Abs", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.L = get_L(A)
+
+    def get_K(self, t):
+        return np.linalg.pinv(t * self.A + self.L)

@@ -189,20 +189,20 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
-alpha_array = np.arange(0,1,0.5)
-beta_array = np.arange(0,1,0.5)
-lambda_array = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
-tau_array = [0.1, 0.2, 0.5, 1., 10] #[0.1, 0.2, 0.5, 1., 10]
-type_array = ['symmetric', 'RW'] #['symmetric','RW']
-fmr_array = [0, 0.2,0.5] #[0, 0.2,0.6]
-edr_array = [0,0.2,0.5] #[0,0.2,0.5]
+alpha_array = [0.5]
+beta_array = [1]
+lambda_array = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
+tau_array = [0.1, 0.2, 0.5, 1., 10]
+type_array = ['symmetric']
+fmr_array = [0, 0.2, 0.5]
+edr_array = [0, 0.2, 0.5]
 
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
-    'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array}, #TODO
+    'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},#TODO 
+    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},
     'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{},
     'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},

@@ -28,7 +28,7 @@ import pandas as pd
 import os
 import torch
 from sklearn.neighbors import kneighbors_graph, radius_neighbors_graph
-from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
+from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected, to_dense_adj, dense_to_sparse
 from sklearn.preprocessing import StandardScaler
 import joblib
 from io import BytesIO
@@ -39,6 +39,7 @@ import os.path as osp
 from typing import Callable, List, Optional
 from torch_geometric.data import Data, InMemoryDataset, download_url
 from torch_geometric.utils import coalesce
+from models.baseline_models import *
 
 def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
                    standardize=True, centers = 4, cluster_std = [0.1,0.1,1.0,1.0],
@@ -103,6 +104,20 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         dataset = Planetoid(root='Planetoid', name='Cora', transform=NormalizeFeatures())
         G = dataset[0]  # Get the first graph object.
         G.edge_weight = torch.ones(G.edge_index.shape[1])
+        print('BEFORE KERNEL',G.edge_index.shape[1])
+
+        # Compute the Commute Time matrix
+        A = to_dense_adj(edge_index=G.edge_index, edge_attr=G.edge_weight).numpy()
+        K = CT_H(A).get_K()
+        K = torch.from_numpy(K)
+        K = torch.nn.functional.normalize(K)
+
+        G.edge_index, G.edge_weight = dense_to_sparse(K)
+        print('AFTER KERNEL',G.edge_index.shape[1])
+        plt.figure()
+        plt.hist(G.edge_weight.numpy(), bins=20)
+        plt.show()
+
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
 

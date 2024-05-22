@@ -18,7 +18,6 @@ from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn import manifold
 from sklearn.decomposition import PCA
-siglog = torch.nn.LogSigmoid()
 import networkx as nx
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
@@ -85,13 +84,12 @@ class GNUMAP2(nn.Module):
         return current_embedding, q
 
     def loss_function(self, p, q, reg):
-        logsigmoid= nn.LogSigmoid()
         def CE(highd, lowd, reg):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
-            pos_CE = torch.sum(highd * logsigmoid(lowd))
-            neg_CE = torch.sum((1 - highd) * logsigmoid(1 - lowd))
-            return - (pos_CE + neg_CE)
+            pos_CE = torch.sum(highd * torch.log(lowd))
+            neg_CE = torch.sum((1 - highd) * torch.log(1 - lowd))
+            return - (reg* pos_CE + neg_CE)
         
         loss = CE(p, q, reg)
         return loss
