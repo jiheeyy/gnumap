@@ -18,20 +18,28 @@
 echo "My SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
 echo "My SLURM_ARRAY_JOB_ID: " $SLURM_ARRAY_JOB_ID
 
-
 job_id=$SLURM_ARRAY_JOB_ID
 source /opt/conda/etc/profile.d/conda.sh
 conda activate gnumap
 
 result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
-filename="${1}_${2}"
 echo "result file is ${result_file}"
-echo "filename is ${filename}"
-# For PEANUT. MIDWAY3 $HOME/gnumap/experiments
-cd /home/jiheeyou/Desktop/gnumap/experiments
+cd $SCRATCH/$USER/gnumap/experiments
 
-if [ "$2" -eq 1 ]; then
-    python experiment_main.py --name_dataset $1 --basic 1 --filename $filename --result_file $result_file
+if [ ! -d "results/$2" ]; then
+    mkdir -p "results/$2"
+fi
+
+if [ "$3" = "second" ]; then
+    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm DGI VGAE GAE GRACE PCA LaplacianEigenmap Isomap TSNE UMAP DenseMAP
+    else
+        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm DGI VGAE GAE GRACE PCA LaplacianEigenmap Isomap TSNE UMAP DenseMAP
+    fi
 else
-    python experiment_main.py --name_dataset $1 --jm $2 --filename $filename --result_file $result_file
+    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm GNUMAP2 SPAGCN BGRL CCA-SSG
+    else
+        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm GNUMAP2 SPAGCN BGRL CCA-SSG
+    fi
 fi
