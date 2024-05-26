@@ -159,8 +159,9 @@ def convert_to_graph(X, n_neighbours =15, features='none', standardize=True,
     else:
         feats = torch.eye(n)
         
-    new_data = Data(x=feats, edge_index=edge_index, # 
-                    edge_weight= torch.exp((edge_weights - max(edge_weights))/max(edge_weights)), #torch.exp(-(edge_weights**2)/(2 * bw**2)),
+    new_data = Data(x=feats, edge_index=edge_index,
+                    edge_weight = torch.ones(edge_index.shape[1]),
+                    # edge_weight= torch.exp((edge_weights - max(edge_weights))/max(edge_weights)), #torch.exp(-(edge_weights**2)/(2 * bw**2)),
                     sparse=A.toarray()) # heat kernel
     ## edge_weight kernel transf 0 1 todo
     return new_data

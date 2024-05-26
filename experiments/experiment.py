@@ -39,6 +39,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                 epochs=np.nan, n_layers=np.nan, out_dim=np.nan, hid_dim=np.nan, 
                 lr=np.nan, n_neighbors=np.nan, dataset=np.nan,
                 alpha=np.nan, beta=np.nan, gnn_type=np.nan, tau=np.nan, lambd=np.nan, edr=np.nan, fmr=np.nan,
+                spagcn_n_neighbors=np.nan, spagcn_res=np.nan, spagcn_alpha=np.nan,
                 name_file=np.nan, save_img=np.nan,
                 random_state=42, perplexity=30, wd=0.0, pred_hid=512,proj="standard",min_dist=1e-3,patience=20,
                 eval=None):
@@ -103,7 +104,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                                          alpha, beta)
     elif model_name == "SPAGCN":
         model, embeds, loss_values = train_spagcn(G, hid_dim, out_dim, epochs, fmr, gnn_type,
-                                         alpha, beta)
+                                         alpha, beta, spagcn_n_neighbors, spagcn_res, spagcn_alpha, lr)
     elif model_name == 'PCA':
         model = PCA(n_components=out_dim)
         embeds = model.fit_transform(
@@ -151,7 +152,12 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
     end_time = time.time()
     results={}
     if eval:
-        global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,large_class,
+        if large_class:
+            print("LARGE CLASS! SAMPLING 1000 POINTS")
+            global_metrics, local_metrics = sample_eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
+                                                dataset=dataset)
+        else:
+            global_metrics, local_metrics = eval_all(G, X_ambient, X_manifold, embeds, cluster_labels,model_name,
                                                 dataset=dataset)
         print("done with the embedding evaluation")
         results = {**global_metrics, **local_metrics}

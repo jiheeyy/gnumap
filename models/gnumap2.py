@@ -18,7 +18,6 @@ from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn import manifold
 from sklearn.decomposition import PCA
-siglog = torch.nn.LogSigmoid()
 import networkx as nx
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
@@ -26,15 +25,16 @@ from torch_geometric.utils import negative_sampling, to_scipy_sparse_matrix
 from scipy.sparse.csgraph import shortest_path
 from scipy.sparse import csr_matrix
 import random
+from models.dbn import DBN, DBN2
 
 class GNUMAP2(nn.Module):
     def __init__(self,
                  in_dim,
-                 nhid=256,
-                 out_dim=2,
-                 epochs=400,
-                 n_layers=2,
-                 fmr=0,
+                 nhid=None,
+                 out_dim=None,
+                 epochs=None,
+                 n_layers=None,
+                 fmr=None,
                  gnn_type=None,
                  alpha=None,
                  beta=None):
@@ -42,6 +42,10 @@ class GNUMAP2(nn.Module):
         self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=fmr, gnn_type=gnn_type, alpha=alpha, beta=beta)
         self.epochs, self.in_dim, self.out_dim = epochs, in_dim, out_dim
         self.alpha, self.beta = self.find_ab_params(spread=1, min_dist=0.1)
+        self.dbn = DBN(num_features=out_dim,
+                          num_groups=1,
+                          dim=out_dim,
+                          affine=False, momentum=1.)
         
     def find_ab_params(self, spread=1, min_dist=0.1):
         # Exact UMAP function for fitting a, b params
@@ -61,8 +65,8 @@ class GNUMAP2(nn.Module):
     def forward(self, features, edge_index, row_neg=None, col_neg=None):
 
         # Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
-
         current_embedding = self.gc(features, edge_index)
+        current_embedding = self.dbn(current_embedding)
 
         if row_neg is None or col_neg is None:
             q = None
@@ -84,16 +88,16 @@ class GNUMAP2(nn.Module):
             q = 1 / (1 + self.alpha * torch.pow(lowdim_dist, (2*self.beta)))
         return current_embedding, q
 
-    def loss_function(self, p, q, reg):
-        logsigmoid= nn.LogSigmoid()
-        def CE(highd, lowd, reg):
+    def loss_function(self, p, q):
+        def CE(highd, lowd):
             # highd and lowd both have indim x indim dimensions
             #highd, lowd = torch.tensor(highd, requires_grad=True), torch.tensor(lowd, requires_grad=True)
-            pos_CE = torch.sum(highd * logsigmoid(lowd))
-            neg_CE = torch.sum((1 - highd) * logsigmoid(1 - lowd))
+            eps = 1e-10
+            pos_CE = torch.sum(highd * torch.log(lowd+eps))
+            neg_CE = torch.sum((1 - highd) * torch.log(1 - lowd+eps))
             return - (pos_CE + neg_CE)
         
-        loss = CE(p, q, reg)
+        loss = CE(p, q)
         return loss
         
     def fit(self, features, edge_index, edge_weight, lr=0.005, opt='adam', weight_decay=0):
@@ -109,8 +113,6 @@ class GNUMAP2(nn.Module):
 
         # Probability distribution in highdim defined as the sparse adj matrix with probability of node connection.
         # No further updates to p
-
-
         # More nonzero p than n_neighbors because includes duplicates
         p = torch.zeros((features.shape[0],features.shape[0])) # 1000,1000
         for i in range(len(edge_weight)):
@@ -120,12 +122,8 @@ class GNUMAP2(nn.Module):
             p[source, target] = weight # create p from edge_index, edge_weight
             # p here is between 0 to 1. That's why it works well with normalized lowdim distances.
 
-    
         # q is probability distribution in lowdim
         # q will be updated at each forward pass
-        possible_edges = (features.shape[0]*(features.shape[0]-1))/2
-        num_edges = len(edge_index[0])
-        reg = possible_edges / num_edges
         pos_p = p[edge_index[0],edge_index[1]]
 
         self.train()
@@ -137,9 +135,9 @@ class GNUMAP2(nn.Module):
 
             p_sampled = torch.cat((pos_p, p[row_neg, col_neg]), dim=0)
  
-            loss = self.loss_function(p_sampled, q, reg)
+            loss = self.loss_function(p_sampled, q, )
             loss.backward()
-            nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
+            # nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
             optimizer.step()
             loss_np = loss.item()
             loss_values.append([loss_np, loss.item(), -1])

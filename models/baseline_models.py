@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, GraphNorm
+import numpy as np
+from abc import ABC
 from models.aggregation import *
 from models.aggregation import GAPPNP
 
@@ -268,3 +270,103 @@ class MLP(nn.Module):
         x = self.layer2(x)
 
         return x
+
+"""Implementation of https://github.com/vlivashkin/pygkernels"""
+class Scaler(ABC):
+    def __init__(self, A: np.ndarray = None):
+        self.eps = 10**-10
+        self.A = A
+
+    def scale_list(self, ts):
+        for t in ts:
+            yield self.scale(t)
+
+    def scale(self, t):
+        return t
+
+
+class Linear(Scaler):  # no transformation, for SP-CT
+    pass
+
+class Fraction(Scaler):  # Forest, logForest, Comm, logComm, Heat, logHeat, SCT, SCCT, ...
+    def scale(self, t):
+        return 0.5 * t / (1.0 - t + self.eps)
+
+def get_D(A):
+    """
+    Degree matrix
+    """
+    return np.diag(np.sum(A, axis=0))
+
+
+def get_L(A):
+    """
+    Ordinary (or combinatorial) Laplacian matrix.
+    L = D - A
+    """
+    return get_D(A) - A
+
+class Kernel(ABC):
+    EPS = 10**-10
+    name, _default_scaler = None, None
+    _parent_distance_class, _parent_kernel_class = None, None
+
+    def __init__(self, A: np.ndarray):
+        assert not (self._parent_distance_class and self._parent_kernel_class)
+        if self._parent_distance_class:
+            self._parent_kernel = None
+            self._parent_distance = self._parent_distance_class(A)
+            self._default_scaler = self._parent_distance._default_scaler
+        elif self._parent_kernel_class:
+            self._parent_kernel = self._parent_kernel_class(A)
+            self._parent_distance = None
+            self._default_scaler = self._parent_kernel._default_scaler
+        self.scaler: Scaler = self._default_scaler(A)
+        self.A = A
+
+    def get_K(self, param):
+        if self._parent_distance:  # use D -> K transform
+            D = self._parent_distance.get_D(param)
+            return D_to_K(D)
+        elif self._parent_kernel:  # use element-wise log transform
+            H0 = self._parent_kernel.get_K(param)
+            return ewlog(H0)
+        else:
+            raise NotImplementedError()
+
+class CT_H(Kernel):
+    name, _default_scaler = "CT", Linear
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.K_CT = np.linalg.pinv(get_L(self.A))
+
+    def get_K(self, param=None):
+        return self.K_CT
+
+class CCT_H(Kernel):
+    name, _default_scaler = "CCT", Fraction
+
+    def __init__(self, A: np.ndarray):
+        super().__init__(A)
+        self.K_CCT = self.H_CCT(A)
+
+    def H_CCT(self, A: np.ndarray):
+        """
+        H = I - E / n
+        M = D^{-1/2}(A - dd^T/vol(G))D^{-1/2},
+            d is a vector of the diagonal elements of D,
+            vol(G) is the volume of the graph (sum of all elements of A)
+        K_CCT = HD^{-1/2}M(I - M)^{-1}MD^{-1/2}H
+        """
+        size = A.shape[0]
+        I = np.eye(size)
+        d = np.sum(A, axis=0).reshape((-1, 1))
+        D05 = np.diag(np.power(d, -0.5)[:, 0])
+        H = np.eye(size) - np.ones((size, size)) / size
+        volG = np.sum(A)
+        M = D05.dot(A - d.dot(d.transpose()) / volG).dot(D05)
+        return H.dot(D05).dot(M).dot(np.linalg.pinv(I - M)).dot(M).dot(D05).dot(H)
+
+    def get_K(self, alpha=None):
+        return self.K_CCT

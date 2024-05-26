@@ -28,7 +28,7 @@ import pandas as pd
 import os
 import torch
 from sklearn.neighbors import kneighbors_graph, radius_neighbors_graph
-from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected
+from torch_geometric.utils import from_scipy_sparse_matrix, to_undirected, to_dense_adj, dense_to_sparse
 from sklearn.preprocessing import StandardScaler
 import joblib
 from io import BytesIO
@@ -39,8 +39,9 @@ import os.path as osp
 from typing import Callable, List, Optional
 from torch_geometric.data import Data, InMemoryDataset, download_url
 from torch_geometric.utils import coalesce
+from models.baseline_models import *
 
-def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',featdim = 50,
+def create_dataset(name, n_samples = 500, n_neighbours = 10, features='none',featdim = 50,
                    standardize=True, centers = 4, cluster_std = [0.1,0.1,1.0,1.0],
                    ratio_circles = 0.2, noise = 0.05, 
                    a=1, b=1, n_bins = 10, random_state = None, radius_knn = 0, bw = 1,
@@ -103,6 +104,25 @@ def create_dataset(name, n_samples = 500, n_neighbours = 50, features='none',fea
         dataset = Planetoid(root='Planetoid', name='Cora', transform=NormalizeFeatures())
         G = dataset[0]  # Get the first graph object.
         G.edge_weight = torch.ones(G.edge_index.shape[1])
+        
+        # num_original_edges = G.edge_index.shape[1]
+        # # Compute the Commute Time matrix
+        # A = to_dense_adj(edge_index=G.edge_index, edge_attr=G.edge_weight)[0]
+        # L = torch.from_numpy(CT_H(A.numpy()).get_K())
+        # L_diag = L.diagonal()
+        # C = L_diag.view(-1, 1) + L_diag.view(1, -1) - 2 * L
+        # assert torch.sum(C == 0).item() == C.shape[1]
+        # nonzero_mask = C != 0
+        # C[nonzero_mask] = torch.exp(-(C[nonzero_mask]))
+        # top_c_values, _ = torch.topk(C.flatten(), C.shape[1])
+        # mask = C >= top_c_values[-1]
+        # C = C * mask
+        # G.edge_index, G.edge_weight = dense_to_sparse(C)
+        # plt.figure()
+        # plt.hist(G.edge_weight.numpy(), bins=20)
+        # plt.yscale('log')
+        # plt.show()
+
         X_ambient, cluster_labels = G.x.numpy(), G.y.numpy()
         X_manifold = X_ambient
 

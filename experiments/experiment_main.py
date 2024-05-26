@@ -69,7 +69,6 @@ parser.add_argument('--jm', nargs='+', default=['DGI','BGRL','CCA-SSG','GRACE','
                             'PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP',
                             'GAE','VGAE'],
                     help='List of models to run')
-parser.add_argument('--large_class', type=int, default=0)
 parser.add_argument('--basic', type=int, default=0)
 parser.add_argument('--result_file', type=str, default='result_file')
 parser.add_argument('--eval', type=int, default=1) # make this 0 to not evaluate
@@ -81,7 +80,10 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 random.seed(seed)
 save_img = bool(args.save_img)
-large_class = bool(args.large_class)
+if args.name_dataset in ['Blobs','Swissroll','Circles','Moons','Sphere']:
+    large_class = False
+else:
+    large_class=True
 basic = bool(args.basic)
 eval = bool(args.eval)
 single = bool(args.single)
@@ -105,8 +107,8 @@ X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_s
 
 def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
     if save_img:
+        plt.figure(figsize=(4, 4))
         if title[:5] == 'Mouse':
-            plt.figure(figsize=(4, 4))
             color_palette = ["#877688", "#73377f", "#1c9a70", "#35609f"]
             gray_color = "#877688"
 
@@ -119,9 +121,9 @@ def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
             plt.gca().get_yaxis().set_visible(False)
             plt.gca().get_xaxis().set_visible(False)
         else:
-            plt.figure()
-            plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=cluster_labels, cmap=plt.cm.Spectral)
-        plt.title(title)
+            plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=cluster_labels, s=8, cmap=plt.cm.Spectral)
+            plt.gca().get_yaxis().set_visible(False)
+            plt.gca().get_xaxis().set_visible(False)
         plt.savefig(save_path, format='png', dpi=300)
         plt.close()
     else:
@@ -143,7 +145,7 @@ def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
 
 
 def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8,4))
+    fig, (ax1) = plt.subplots(1, 1, figsize=(4,4))
     if X is not None:
         if X.shape[1] == 3:
             # 3D scatter plot
@@ -153,17 +155,18 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
             if args.name_dataset[:5] == 'Mouse':
                 color_palette = ["#877688", "#73377f", "#1c9a70", "#35609f"]
                 gray_color = "#877688"
-
                 cluster_to_color = {cluster: color_palette[i] for i, cluster in enumerate(sorted(cluster_labels.unique()))}
                 mapped_colors = cluster_labels.map(cluster_to_color).values
                 is_gray = mapped_colors == gray_color
                 ax1.scatter(X[is_gray, 0], X[is_gray, 1], s=1, c=gray_color, alpha=0.2)
                 ax1.scatter(X[~is_gray, 0], X[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
+                plt.gca().get_yaxis().set_visible(False)
+                plt.gca().get_xaxis().set_visible(False)
             else:
                 # 2D scatter plot
-                ax1.set_title(model_name)
-                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral, s=10)
-                ax1.grid(True)
+                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral, s=8)
+                plt.gca().get_yaxis().set_visible(False)
+                plt.gca().get_xaxis().set_visible(False)
 
         # Output dimension more than 3
         else:
@@ -177,33 +180,37 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
         ax1.set_facecolor('black')
 
     # Plotting loss values on the second subplot
-    if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
-        ax2.plot(loss_values, color='blue')
-        ax2.set_title('Loss Over Time')
-        ax2.set_xlabel('Epoch')
-        ax2.set_ylabel('Loss')
-    else:
-        pass
+    # if model_name not in ['PCA', 'LaplacianEigenmap', 'Isomap', 'TSNE', 'UMAP', 'DenseMAP']:
+    #     ax2.plot(loss_values, color='blue')
+    #     ax2.set_title('Loss Over Time')
+    #     ax2.set_xlabel('Epoch')
+    #     ax2.set_ylabel('Loss')
+    # else:
+    #     pass
     
     final_save_path = os.path.join(save_path, model_name+file_name+'.png')
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
-alpha_array = np.arange(0,1,0.5)
-beta_array = np.arange(0,1,0.5)
-lambda_array = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.] #[1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
-tau_array = [0.1, 0.2, 0.5, 1., 10] #[0.1, 0.2, 0.5, 1., 10]
-type_array = ['symmetric', 'RW'] #['symmetric','RW']
-fmr_array = [0, 0.2,0.5] #[0, 0.2,0.6]
-edr_array = [0,0.2,0.5] #[0,0.2,0.5]
+alpha_array = [0.5]
+beta_array = [1]
+lambda_array = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.]
+tau_array = [0.1, 0.2, 0.5, 1., 10]
+type_array = ['symmetric']
+fmr_array = [0, 0.2, 0.5]
+edr_array = [0, 0.2, 0.5]
+spagcn_n_neighbors=[5, 10, 20]
+spagcn_res=[0.3, 0.4, 0.5]
+spagcn_alpha = [0.1,0.2,0.3]
 
 hyperparameters = {
     'DGI': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
-    'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array}, #TODO
+    'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},#TODO 
-    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},
+    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},
+    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array, 
+    'spagcn_n_neighbors':spagcn_n_neighbors, 'spagcn_res':spagcn_res, 'spagcn_alpha':spagcn_alpha},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{},
     'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},
     'GAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array}

@@ -21,14 +21,13 @@ from torch.nn.parameter import Parameter
 from torch.nn.modules.module import Module
 
 class SPAGCN(nn.Module):
-    def __init__(self, in_dim, hid_dim, out_dim, epochs, fmr, gnn_type, alpha, beta):
+    def __init__(self, in_dim, hid_dim, out_dim, epochs, fmr, gnn_type, alpha, beta, spagcn_n_neighbors, spagcn_res, spagcn_alpha, lr):
         super(SPAGCN, self).__init__()
         self.gc = GCN(in_dim=in_dim, hid_dim=hid_dim, out_dim=out_dim, n_layers=1, dropout_rate=fmr,
-        alpha=0.5, beta=0.5, gnn_type=gnn_type)
-        self.epochs = epochs
-        self.out_dim=out_dim
+        alpha=alpha, beta=beta, gnn_type=gnn_type)
+        self.epochs, self.out_dim, self.lr = epochs, out_dim, lr
+        self.n_neighbors, self.res, self.alpha = spagcn_n_neighbors, spagcn_res, spagcn_alpha
         #self.mu determined by the init method
-        self.alpha=alpha
 
     def forward(self, x, edge_index, edge_weight):
         x=self.gc(x, edge_index, edge_weight)
@@ -50,8 +49,11 @@ class SPAGCN(nn.Module):
         p = p / torch.sum(p, dim=1, keepdim=True)
         return p
 
-    def fit(self, X, edge_index, edge_weight, lr=0.005, update_interval=3, weight_decay=0,opt="sgd",init="louvain",n_neighbors=10,res=0.4,n_clusters=10,init_spa=True,tol=1e-3):
+    def fit(self, X, edge_index, edge_weight, update_interval=3, weight_decay=5e-4,opt="sgd",init="louvain",n_clusters=10,init_spa=True,tol=1e-3):
         max_epochs=self.epochs
+        lr = self.lr
+        n_neighbors=self.n_neighbors
+        res=self.res
         loss_values=[]
 
         if opt=="sgd":
@@ -106,15 +108,15 @@ class SPAGCN(nn.Module):
             loss_values.append(loss_numpy)
             print("Epoch ", epoch, "Loss ", loss_numpy)
 
-            # Check stop criterion
-            y_pred = torch.argmax(q, dim=1).data.cpu().numpy()
-            delta_label = np.sum(y_pred != y_pred_last).astype(np.float32) / X.shape[0]
-            y_pred_last = y_pred
-            if epoch>0 and (epoch-1)%update_interval == 0 and delta_label < tol:
-                print('delta_label ', delta_label, '< tol ', tol)
-                print("Reach tolerance threshold. Stopping training.")
-                print("Total epoch:", epoch)
-                break
+            # # Check stop criterion
+            # y_pred = torch.argmax(q, dim=1).data.cpu().numpy()
+            # delta_label = np.sum(y_pred != y_pred_last).astype(np.float32) / X.shape[0]
+            # y_pred_last = y_pred
+            # if epoch>0 and (epoch-1)%update_interval == 0 and delta_label < tol:
+            #     print('delta_label ', delta_label, '< tol ', tol)
+            #     print("Reach tolerance threshold. Stopping training.")
+            #     print("Total epoch:", epoch)
+            #     break
         return loss_values
 
     def predict(self, X, edge_index, edge_weight):
