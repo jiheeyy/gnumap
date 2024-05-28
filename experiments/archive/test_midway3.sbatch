@@ -6,7 +6,7 @@
 #SBATCH --account=pi-cdonnat
 #SBATCH --array=1-100
 #SBATCH --time=20:00:00
-#SBATCH --partition=caslake
+#SBATCH --partition=cdonnat
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
@@ -22,7 +22,7 @@ echo "My SLURM_ARRAY_JOB_ID: " $SLURM_ARRAY_JOB_ID
 # Add lines here to run your computations
 job_id=$SLURM_ARRAY_JOB_ID
 module load python
-source activate gnumap
+source activate symbol_gnumap
 
 result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 echo "result file is ${result_file}"
