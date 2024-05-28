@@ -28,20 +28,46 @@ result_file="${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 echo "result file is ${result_file}"
 cd $SCRATCH/$USER/gnumap/experiments
 
-if [ ! -d "results/$2" ]; then
-    mkdir -p "results/$2"
+if [ ! -d "results/$2_$3" ]; then
+    mkdir -p "results/$2_$3"
 fi
 
-if [ "$3" = "second" ]; then
+if [ "$3" = "quickten" ]; then
+    # Run the experiment with 'quickten' models
     if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm DGI VGAE GAE GRACE PCA LaplacianEigenmap Isomap TSNE UMAP DenseMAP
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm DGI VGAE GAE GNUMAP2 PCA LaplacianEigenmap Isomap TSNE UMAP DenseMAP
     else
-        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm DGI VGAE GAE GRACE PCA LaplacianEigenmap Isomap TSNE UMAP DenseMAP
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm DGI VGAE GAE GNUMAP2 PCA LaplacianEigenmap Isomap TSNE UMAP DenseMAP
+    fi
+elif [ "$3" = "spagcn" ]; then
+    # Run the experiment with 'spagcn' model
+    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm SPAGCN
+    else
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm SPAGCN
+    fi
+elif [ "$3" = "bgrl" ]; then
+    # Run the experiment with 'bgrl' model
+    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm BGRL
+    else
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm BGRL
+    fi
+elif [ "$3" = "grace" ]; then
+    # Run the experiment with 'grace' model
+    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm GRACE
+    else
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm GRACE
+    fi
+elif [ "$3" = "ccassg" ]; then
+    # Run the experiment with 'cca-ssg' model
+    if [ $SLURM_ARRAY_TASK_ID -eq 1]; then
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
+    else
+        python experiment_main.py --name_dataset "$1" --filename "$2_$3" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm CCA-SSG
     fi
 else
-    if [ $SLURM_ARRAY_TASK_ID -eq 1 ]; then
-        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 1 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm GNUMAP2 SPAGCN BGRL CCA-SSG
-    else
-        python experiment_main.py --name_dataset "$1" --filename "$2" --save_img 0 --result_file "$result_file" --seed $SLURM_ARRAY_TASK_ID --jm GNUMAP2 SPAGCN BGRL CCA-SSG
-    fi
+    echo "ERROR! No model to run"
+    exit 1
 fi
