@@ -105,19 +105,13 @@ def create_dataset(name, n_samples = 500, n_neighbours = 10, features='none',fea
         G = dataset[0]  # Get the first graph object.
         G.edge_weight = torch.ones(G.edge_index.shape[1])
         
-        # num_original_edges = G.edge_index.shape[1]
         # # Compute the Commute Time matrix
         # A = to_dense_adj(edge_index=G.edge_index, edge_attr=G.edge_weight)[0]
         # L = torch.from_numpy(CT_H(A.numpy()).get_K())
         # L_diag = L.diagonal()
         # C = L_diag.view(-1, 1) + L_diag.view(1, -1) - 2 * L
         # assert torch.sum(C == 0).item() == C.shape[1]
-        # nonzero_mask = C != 0
-        # C[nonzero_mask] = torch.exp(-(C[nonzero_mask]))
-        # top_c_values, _ = torch.topk(C.flatten(), C.shape[1])
-        # mask = C >= top_c_values[-1]
-        # C = C * mask
-        # G.edge_index, G.edge_weight = dense_to_sparse(C)
+        # G.edge_index, G.edge_weight = dense_to_sparse(torch.exp(-C) * A)
         # plt.figure()
         # plt.hist(G.edge_weight.numpy(), bins=20)
         # plt.yscale('log')
