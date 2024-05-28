@@ -199,8 +199,8 @@ tau_array = [0.1, 0.2, 0.5, 1., 10]
 type_array = ['symmetric']
 fmr_array = [0, 0.2, 0.5]
 edr_array = [0, 0.2, 0.5]
-spagcn_n_neighbors=[5, 10, 20]
-spagcn_res=[0.3, 0.4, 0.5]
+spagcn_n_neighbors=[5, 10, 15]
+spagcn_res=[0.4, 1]
 spagcn_alpha = [0.1,0.2,0.3]
 
 hyperparameters = {
@@ -209,8 +209,7 @@ hyperparameters = {
     'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
     'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array},
-    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array, 
-    'spagcn_n_neighbors':spagcn_n_neighbors, 'spagcn_res':spagcn_res, 'spagcn_alpha':spagcn_alpha},
+    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array,'fmr':fmr_array, 'spagcn_n_neighbors':spagcn_n_neighbors, 'spagcn_res':spagcn_res, 'spagcn_alpha':spagcn_alpha},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{},
     'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array},
     'GAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':fmr_array}
