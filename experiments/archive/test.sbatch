@@ -5,7 +5,7 @@
 #SBATCH --error=logs/array_%A_%a.err
 #SBATCH --array=1-100
 #SBATCH --time=20:00:00
-#SBATCH --partition=fast
+#SBATCH --partition=general
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
