@@ -54,7 +54,7 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
                                        patience=patience,
                                        epochs=epochs, lr=lr,
                                        name_file=name_file,
-                                       alpha=alpha, beta=beta, gnn_type=gnn_type, dropout_rate=fmr)
+                                       alpha=alpha, beta=beta, gnn_type=gnn_type, dropout_rate=0.5)
         embeds = model.get_embedding(G)
 
     elif model_name == 'GRACE':  # a b type t
@@ -132,13 +132,13 @@ def experiment(model_name, G, X_ambient, X_manifold, cluster_labels,large_class,
     elif model_name == 'GAE':
         model, loss_values = train_gae(G, hid_dim=hid_dim, out_dim=out_dim,
                                          epochs=epochs, n_layers=n_layers, 
-                                         dropout_rate=fmr, gnn_type=gnn_type,
+                                         dropout_rate=0.5, gnn_type=gnn_type,
                                          alpha=alpha, beta=beta)
         embeds = model.encode(G.x, G.edge_index).detach()
     elif model_name == 'VGAE':
         model, loss_values = train_gae(G, hid_dim=hid_dim, out_dim=out_dim,
                                          epochs=epochs, variational=True, n_layers=n_layers, 
-                                         dropout_rate=fmr, gnn_type=gnn_type,
+                                         dropout_rate=0.5, gnn_type=gnn_type,
                                          alpha=alpha, beta=beta)
         embeds = model.encode(G.x, G.edge_index).detach()
     else:

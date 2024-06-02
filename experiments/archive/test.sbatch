@@ -3,7 +3,7 @@
 #SBATCH --job-name=array
 #SBATCH --output=logs/array_%A_%a.out
 #SBATCH --error=logs/array_%A_%a.err
-#SBATCH --array=1-100
+#SBATCH --array=1-1
 #SBATCH --time=20:00:00
 #SBATCH --partition=fast
 #SBATCH --nodes=1

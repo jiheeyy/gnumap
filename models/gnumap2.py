@@ -67,7 +67,7 @@ class GNUMAP2(nn.Module):
 
         # Updates current_embedding, calculates q (probability distribution of node connection in lowdim)
         current_embedding = self.gc(features, edge_index)
-        current_embedding = self.dbn(current_embedding)
+        # current_embedding = self.dbn(current_embedding)
 
         if row_neg is None or col_neg is None:
             q = None
