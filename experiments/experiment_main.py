@@ -105,7 +105,13 @@ X_ambient, X_manifold, cluster_labels, G = create_dataset(args.name_dataset, n_s
                                                           SBMtype='lazy',a=args.a,
                                                           b=args.b, random_state=seed)
 
-def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
+
+if args.name_dataset in ['Swissroll','Circles','Moons','Blobs']:
+    size=40
+else:
+    size=20
+
+def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path, size=40):
     if save_img:
         plt.figure(figsize=(4, 4))
         if title[:5] == 'Mouse':
@@ -116,22 +122,28 @@ def visualize_dataset(X_ambient, cluster_labels, title, save_img, save_path):
             mapped_colors = cluster_labels.map(cluster_to_color).values
             is_gray = mapped_colors == gray_color
 
-            plt.scatter(X_ambient[is_gray, 0], X_ambient[is_gray, 1], s=1, c=gray_color, alpha=0.2)
-            plt.scatter(X_ambient[~is_gray, 0], X_ambient[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
+            plt.scatter(X_ambient[is_gray, 0], X_ambient[is_gray, 1], s=10, c=gray_color, alpha=0.2)
+            plt.scatter(X_ambient[~is_gray, 0], X_ambient[~is_gray, 1], s=10, c=mapped_colors[~is_gray])
             plt.gca().get_yaxis().set_visible(False)
             plt.gca().get_xaxis().set_visible(False)
         else:
-            plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=cluster_labels, s=8, cmap=plt.cm.Spectral)
+            plt.scatter(X_ambient[:, 0], X_ambient[:, 1], c=cluster_labels, s=size, cmap=plt.cm.Spectral)
             plt.gca().get_yaxis().set_visible(False)
             plt.gca().get_xaxis().set_visible(False)
         plt.savefig(save_path, format='png', dpi=300)
+        print("This is the save_path", save_path)
         plt.close()
     else:
         pass
 
-visualize_dataset(X_manifold, cluster_labels, 
-title=f'{args.name_dataset} a={str(args.a)}, b={str(args.b)}, {str(args.n_samples)} Points', 
-save_img=save_img, save_path=new_dir_path + "/manifold_" + args.name_dataset + ".png")
+if args.name_dataset in ['Moons','Circles']:
+    visualize_dataset(X_ambient, cluster_labels, 
+    title=f'{args.name_dataset} a={str(args.a)}, b={str(args.b)}, {str(args.n_samples)} Points', 
+    save_img=save_img, save_path=new_dir_path + "/manifold_" + args.name_dataset + ".png", size=size)
+else:
+    visualize_dataset(X_manifold, cluster_labels, 
+    title=f'{args.name_dataset} a={str(args.a)}, b={str(args.b)}, {str(args.n_samples)} Points', 
+    save_img=save_img, save_path=new_dir_path + "/manifold_" + args.name_dataset + ".png", size=size)
 
 def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
     if rp is not None:
@@ -144,7 +156,7 @@ def visualize_density(X_ambient, rp, title, model_name, file_name, save_path):
         pass
 
 
-def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path):
+def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_name, save_path, size=40):
     fig, (ax1) = plt.subplots(1, 1, figsize=(4,4))
     if X is not None:
         if X.shape[1] == 3:
@@ -158,13 +170,13 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
                 cluster_to_color = {cluster: color_palette[i] for i, cluster in enumerate(sorted(cluster_labels.unique()))}
                 mapped_colors = cluster_labels.map(cluster_to_color).values
                 is_gray = mapped_colors == gray_color
-                ax1.scatter(X[is_gray, 0], X[is_gray, 1], s=1, c=gray_color, alpha=0.2)
-                ax1.scatter(X[~is_gray, 0], X[~is_gray, 1], s=1, c=mapped_colors[~is_gray])
+                ax1.scatter(X[is_gray, 0], X[is_gray, 1], s=10, c=gray_color, alpha=0.2)
+                ax1.scatter(X[~is_gray, 0], X[~is_gray, 1], s=10, c=mapped_colors[~is_gray])
                 plt.gca().get_yaxis().set_visible(False)
                 plt.gca().get_xaxis().set_visible(False)
             else:
                 # 2D scatter plot
-                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral, s=8)
+                ax1.scatter(X[:, 0], X[:, 1], c=cluster_labels, cmap=plt.cm.Spectral, s=size)
                 plt.gca().get_yaxis().set_visible(False)
                 plt.gca().get_xaxis().set_visible(False)
 
@@ -189,6 +201,7 @@ def visualize_embeds(X, loss_values, cluster_labels, title, model_name, file_nam
     #     pass
     
     final_save_path = os.path.join(save_path, model_name+file_name+'.png')
+    print("This is the final_save_path", final_save_path)
     plt.savefig(final_save_path, format='png', dpi=300, facecolor=fig.get_facecolor())
     plt.close()
 
@@ -252,7 +265,7 @@ for model_name in models_to_test:
                 best_acc = res['acc']
                 res['save_img'] = True # most recent True means that image was saved for the model
                 visualize_embeds(out, loss_values, cluster_labels, f"{model_name}, {params}", model_name, str(args_params)+str(args.features),
-                new_dir_path) 
+                new_dir_path, size) 
             else:
                 pass
         except:
