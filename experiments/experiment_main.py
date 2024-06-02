@@ -221,8 +221,8 @@ hyperparameters = {
     'CCA-SSG': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'BGRL': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'lambd':lambda_array, 'fmr':fmr_array, 'edr':edr_array},
     'GRACE': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'tau':tau_array, 'fmr':fmr_array, 'edr':edr_array},
-    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':[0.5]},
-    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':[0.5], 'spagcn_n_neighbors':spagcn_n_neighbors, 'spagcn_res':spagcn_res, 'spagcn_alpha':spagcn_alpha},
+    'GNUMAP2':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':[0]},
+    'SPAGCN': {'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array, 'fmr':[0], 'spagcn_n_neighbors':spagcn_n_neighbors, 'spagcn_res':spagcn_res, 'spagcn_alpha':spagcn_alpha},
     'PCA':{}, 'LaplacianEigenmap':{}, 'Isomap':{}, 'TSNE':{}, 'UMAP':{}, 'DenseMAP':{},
     'VGAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array},
     'GAE':{'alpha':alpha_array, 'beta':beta_array, 'gnn_type':type_array}
