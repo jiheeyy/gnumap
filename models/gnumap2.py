@@ -42,6 +42,7 @@ class GNUMAP2(nn.Module):
         self.gc = GCN(in_dim=in_dim, hid_dim=nhid, out_dim=out_dim, n_layers=n_layers, dropout_rate=fmr, gnn_type=gnn_type, alpha=alpha, beta=beta)
         self.epochs, self.in_dim, self.out_dim = epochs, in_dim, out_dim
         self.alpha, self.beta = self.find_ab_params(spread=1, min_dist=0.1)
+        print(f'THIS IS GNUMAP ALPHA{self.alpha} BETA{self.beta}')
         self.dbn = DBN(num_features=out_dim,
                           num_groups=1,
                           dim=out_dim,
@@ -51,7 +52,7 @@ class GNUMAP2(nn.Module):
         # Exact UMAP function for fitting a, b params
         # spread=1, min_dist=0.1 default umap value -> a=1.58, b=0.9
         # spread=5, min_dist=0.001 -> a=0.15, b=0.79
-
+        print(f'THIS IS GNUMAP SPREAD{spread} MIN_DIST{min_dist}')
         def curve(x, a, b):
             return 1.0 / (1.0 + a * x ** (2 * b))
 
@@ -76,12 +77,10 @@ class GNUMAP2(nn.Module):
             source_embeddings = current_embedding[edge_index[0]]
             target_embeddings = current_embedding[edge_index[1]]
             pos_diff = source_embeddings - target_embeddings
-            pos_p_norm_distances = torch.norm(pos_diff, p=2, dim=1)
 
             source_neg_embeddings = current_embedding[row_neg]
             target_neg_embeddings = current_embedding[col_neg]
             neg_diff = source_neg_embeddings - target_neg_embeddings
-            neg_p_norm_distances = torch.norm(neg_diff, p=2, dim=1)
             
             lowdim_dist = torch.cat((pos_diff, neg_diff), dim=0)
             lowdim_dist = torch.norm(lowdim_dist, p=2, dim=1)
